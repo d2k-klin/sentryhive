@@ -1,0 +1,25 @@
+# Run SentryHive without installing any scanner toolchains locally.
+#
+#   docker compose run --rm sentryhive scan --profile my-aws-profile
+#   docker compose run --rm sentryhive scan --role-arn arn:aws:iam::1234:role/SecurityAudit
+#
+# Reports appear in ./reports on the host. Read-only AWS creds are mounted in.
+services:
+  sentryhive:
+    build: .
+    image: sentryhive:latest
+    volumes:
+      # Mount your AWS credentials read-only so --profile works.
+      - ${HOME}/.aws:/root/.aws:ro
+      # Reports written by the container land here on the host.
+      - ./reports:/app/reports
+      # Mount the repo you want ASH to scan (IaC mode).
+      - ${SENTRYHIVE_SOURCE:-./}:/scan:ro
+    environment:
+      - AWS_PROFILE
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_SESSION_TOKEN
+      - AWS_DEFAULT_REGION
+    # Default to writing into the mounted reports dir.
+    command: ["scan", "--out", "/app/reports"]

@@ -1,0 +1,42 @@
+{
+  "Version": "2012-10-17",
+  "Comment": "SentryHive read-only audit policy. Attach alongside the AWS-managed SecurityAudit and ViewOnlyAccess policies, which cover most describe/list/get calls. This adds the few extras the bundled scanners need. No write/delete actions are granted.",
+  "Statement": [
+    {
+      "Sid": "SentryHiveIdentityCheck",
+      "Effect": "Allow",
+      "Action": [
+        "sts:GetCallerIdentity"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SentryHiveIamPolicyAnalysis",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GenerateCredentialReport",
+        "iam:GetAccountAuthorizationDetails",
+        "iam:GetAccountPasswordPolicy",
+        "iam:GetAccountSummary",
+        "iam:GetCredentialReport",
+        "iam:ListAccountAliases"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SentryHiveEksReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "eks:DescribeCluster",
+        "eks:ListClusters",
+        "eks:DescribeNodegroup",
+        "eks:ListNodegroups",
+        "eks:DescribeAddon",
+        "eks:ListAddons",
+        "eks:ListFargateProfiles",
+        "eks:DescribeFargateProfile"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

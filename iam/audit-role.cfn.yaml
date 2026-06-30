@@ -1,0 +1,73 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  SentryHive audit role. Creates a least-privilege, read-only IAM role that
+  SentryHive (or your CI) can assume to scan this account. Combines the AWS-managed
+  SecurityAudit + ViewOnlyAccess policies with a small set of extra read permissions
+  the bundled scanners require. No write, delete, or data-plane actions are granted.
+
+Parameters:
+  TrustedPrincipalArn:
+    Type: String
+    Description: >
+      ARN allowed to assume this role (e.g. arn:aws:iam::111122223333:root for a
+      whole account, or a specific user/role ARN).
+  ExternalId:
+    Type: String
+    Default: ""
+    Description: Optional external ID to require when assuming the role (recommended for cross-account).
+  RoleName:
+    Type: String
+    Default: SentryHiveAudit
+
+Conditions:
+  HasExternalId: !Not [!Equals [!Ref ExternalId, ""]]
+
+Resources:
+  SentryHiveAuditRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Ref TrustedPrincipalArn
+            Action: sts:AssumeRole
+            Condition:
+              !If
+                - HasExternalId
+                - StringEquals:
+                    sts:ExternalId: !Ref ExternalId
+                - !Ref AWS::NoValue
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/SecurityAudit
+        - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
+      Policies:
+        - PolicyName: SentryHiveExtraReadOnly
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: SentryHiveIamPolicyAnalysis
+                Effect: Allow
+                Action:
+                  - iam:GenerateCredentialReport
+                  - iam:GetAccountAuthorizationDetails
+                  - iam:GetCredentialReport
+                Resource: "*"
+              - Sid: SentryHiveEksReadOnly
+                Effect: Allow
+                Action:
+                  - eks:DescribeCluster
+                  - eks:ListClusters
+                  - eks:DescribeNodegroup
+                  - eks:ListNodegroups
+                  - eks:DescribeAddon
+                  - eks:ListAddons
+                Resource: "*"
+
+Outputs:
+  RoleArn:
+    Description: Pass this to SentryHive via --role-arn
+    Value: !GetAtt SentryHiveAuditRole.Arn
