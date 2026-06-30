@@ -45,9 +45,81 @@
   .client { font-size:13px; color:#fbbf24; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
   .bar { height:10px; border-radius:999px; background:#0b1220; overflow:hidden; min-width:120px; }
   .bar > span { display:block; height:100%; background:#22c55e; }
+
+  /* Cover/scope/TOC are for PDF only; hidden in the browser. */
+  @media screen { .print-only { display:none; } }
+
+  /* PDF layout (WeasyPrint / Chromium honor @media print). Paper-friendly: light
+     theme, page breaks between sections, repeating footer with page numbers. */
+  @media print {
+    @page {
+      size: A4;
+      margin: 18mm 16mm 20mm 16mm;
+      @bottom-center {
+        content: "SentryHive — Confidential — Acme Corp — page " counter(page) " of " counter(pages);
+        font-size: 9px; color: #6b7280;
+      }
+    }
+    @page :first { @bottom-center { content: none; } }
+    :root { --bg:#fff; --card:#fff; --ink:#111827; --muted:#6b7280; --line:#d1d5db; }
+    body { background:#fff; color:#111827; }
+    header { background:#fff; border-bottom:2px solid #111827; }
+    code { background:#f3f4f6; }
+    .controls { display:none !important; }
+    header .meta { display:none !important; }
+    details { display:none !important; }       /* expand inline instead */
+    section { page-break-inside: avoid; }
+    h2 { page-break-after: avoid; }
+    .cover { page-break-after: always; text-align:center; padding-top:60mm; }
+    .cover img { max-height:80px; margin-bottom:24px; }
+    .cover .title { font-size:30px; font-weight:700; margin:12px 0; }
+    .cover .client { font-size:20px; color:#b45309; margin-bottom:36px; }
+    .cover .confidential { display:inline-block; border:2px solid #dc2626; color:#dc2626;
+      padding:4px 14px; border-radius:6px; font-weight:700; letter-spacing:.1em; }
+    .cover .meta-block { margin-top:40px; font-size:12px; color:#374151; line-height:1.9; }
+    .scope, .toc { page-break-after: always; }
+    .toc ul { list-style:none; padding:0; }
+    .toc a { text-decoration:none; color:#111827; }
+    .toc a::after { content: leader('.') target-counter(attr(href), page); }
+  }
 </style>
 </head>
 <body>
+<!-- ---- PDF-only front matter ---- -->
+<div class="print-only cover">
+  <div class="title">⬡ SentryHive Security Report</div>
+<div class="client">Acme Corp</div>  <div class="confidential">CONFIDENTIAL</div>
+  <div class="meta-block">
+Account: 123456789012<br>    Scan date: 2026-06-30 12:00:00 UTC<br>
+    SentryHive v0.1.0
+  </div>
+</div>
+
+<section class="print-only scope">
+  <h2>Scope &amp; methodology</h2>
+  <table>
+    <tbody>
+      <tr><th>Account scanned</th><td>123456789012</td></tr>
+      <tr><th>Auth identity</th><td><code>arn:aws:iam::123456789012:role/SentryHiveAudit</code></td></tr>
+      <tr><th>Regions</th><td>us-east-1, eu-central-1</td></tr>
+      <tr><th>Scan date</th><td>2026-06-30 12:00:00 UTC</td></tr>
+      <tr><th>SentryHive version</th><td>v0.1.0</td></tr>
+      <tr><th>Scanners &amp; versions</th><td>
+prowler (Prowler 4.5.0) — ok<br>cloudsplaining (cloudsplaining 0.7.0) — ok<br>hardeneks (hardeneks 0.12.0) — ok      </td></tr>
+      <tr><th>Total findings</th><td>9</td></tr>
+    </tbody>
+  </table>
+  <p style="color:#6b7280;font-size:11px">All scanning and report generation runs locally; no scan data leaves the operator's machine.</p>
+</section>
+
+<div class="print-only toc">
+  <h2>Contents</h2>
+  <ul>
+    <li><a href="#sec-summary">Executive summary</a></li>
+<li><a href="#sec-compliance">Compliance posture</a></li><li><a href="#sec-iam">IAM privilege-escalation highlights</a></li><li><a href="#sec-eks">EKS Hardening</a></li>    <li><a href="#sec-findings">All findings</a></li>
+  </ul>
+</div>
+
 <header>
   <div class="brand">
     <div>
@@ -63,7 +135,7 @@
   </div>
 </header>
 <main>
-  <div class="cards">
+  <div class="cards" id="sec-summary">
     <div class="card">
       <div class="n" style="color:#7f1d1d">2</div>
       <div class="l">Critical</div>
@@ -87,7 +159,7 @@
     <div class="card"><div class="n">9</div><div class="l">Total</div></div>
   </div>
 
-  <section>
+  <section id="sec-compliance">
     <h2>Compliance posture</h2>
     <table>
       <thead><tr><th>Framework</th><th>Pass</th><th>Fail</th><th style="width:40%">% pass</th></tr></thead>
@@ -140,7 +212,7 @@
     </table>
   </section>
 
-  <section>
+  <section id="sec-iam">
     <h2>IAM privilege-escalation highlights</h2>
     <p style="color:var(--muted);margin-top:-6px">How an attacker could escalate or take over within this account.</p>
     <table>
@@ -155,6 +227,23 @@
           <td><span class="sev" style="background:#dc2626">High</span></td>
           <td><code>BackupRole</code></td>
           <td>Resource exposure: BackupRole<br><span style="color:var(--muted)">Policy 'BackupRole' grants s3:PutBucketPolicy on *.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="sec-eks">
+    <h2>EKS Hardening</h2>
+    <p style="color:var(--muted);margin-top:-6px">In-cluster best-practice checks (hardeneks). Findings are grouped by cluster.</p>
+    <table>
+      <thead><tr><th>Severity</th><th>Cluster / resource</th><th>Region</th><th>Finding</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="sev" style="background:#dc2626">High</span></td>
+          <td><code>prod-cluster/kube-system</code></td>
+          <td>eu-central-1</td>
+          <td><strong>Anonymous access bound to cluster role</strong>
+<br><span class="remediation">→ Remove the ClusterRoleBinding granting access to system:anonymous.</span></td>
         </tr>
       </tbody>
     </table>
@@ -233,7 +322,7 @@
     </table>
   </section>
 
-  <section>
+  <section id="sec-findings">
     <h2>All findings</h2>
     <div class="controls">
       <input id="q" type="search" placeholder="Filter by text (resource, check, description)…">
@@ -266,6 +355,9 @@
               <summary>details</summary>
 <p>The account root user does not have MFA enabled.</p><p class="remediation">→ Enable a hardware or virtual MFA device on the root user.</p>              <p><span class="pill">id: 84e15d2c7110</span> <span class="pill">check: iam_root_mfa_enabled</span> <span class="pill">source: prowler</span></p>
             </details>
+            <div class="print-only">
+<p style="margin:4px 0">The account root user does not have MFA enabled.</p><p class="remediation" style="margin:4px 0">→ Enable a hardware or virtual MFA device on the root user.</p>              <p style="font-size:11px;color:#6b7280">check: iam_root_mfa_enabled · source: prowler</p>
+            </div>
           </td>
         </tr>
         <tr class="frow" data-sev="Critical" data-tool="prowler" data-status="fail"
@@ -281,6 +373,9 @@
               <summary>details</summary>
 <p>Bucket 'acme-prod-assets' grants s3:GetObject to *.</p><p class="remediation">→ Enable S3 Block Public Access at the account and bucket level.</p>              <p><span class="pill">id: b394bf6e9701</span> <span class="pill">check: s3_bucket_public_access</span> <span class="pill">source: prowler</span></p>
             </details>
+            <div class="print-only">
+<p style="margin:4px 0">Bucket 'acme-prod-assets' grants s3:GetObject to *.</p><p class="remediation" style="margin:4px 0">→ Enable S3 Block Public Access at the account and bucket level.</p>              <p style="font-size:11px;color:#6b7280">check: s3_bucket_public_access · source: prowler</p>
+            </div>
           </td>
         </tr>
         <tr class="frow" data-sev="High" data-tool="cloudsplaining" data-status="fail"
@@ -296,6 +391,9 @@
               <summary>details</summary>
 <p>Policy 'DeployRole' grants iam:CreatePolicyVersion, iam:PassRole.</p><p class="remediation">→ Apply least privilege; scope iam:PassRole with a condition.</p>              <p><span class="pill">id: 8c3547fe4069</span> <span class="pill">check: PrivilegeEscalation</span> <span class="pill">source: cloudsplaining</span></p>
             </details>
+            <div class="print-only">
+<p style="margin:4px 0">Policy 'DeployRole' grants iam:CreatePolicyVersion, iam:PassRole.</p><p class="remediation" style="margin:4px 0">→ Apply least privilege; scope iam:PassRole with a condition.</p>              <p style="font-size:11px;color:#6b7280">check: PrivilegeEscalation · source: cloudsplaining</p>
+            </div>
           </td>
         </tr>
         <tr class="frow" data-sev="High" data-tool="cloudsplaining" data-status="fail"
@@ -311,6 +409,9 @@
               <summary>details</summary>
 <p>Policy 'BackupRole' grants s3:PutBucketPolicy on *.</p><p class="remediation">→ Restrict permissions-management actions to specific resources.</p>              <p><span class="pill">id: cbc439ae17a7</span> <span class="pill">check: ResourceExposure</span> <span class="pill">source: cloudsplaining</span></p>
             </details>
+            <div class="print-only">
+<p style="margin:4px 0">Policy 'BackupRole' grants s3:PutBucketPolicy on *.</p><p class="remediation" style="margin:4px 0">→ Restrict permissions-management actions to specific resources.</p>              <p style="font-size:11px;color:#6b7280">check: ResourceExposure · source: cloudsplaining</p>
+            </div>
           </td>
         </tr>
         <tr class="frow" data-sev="High" data-tool="hardeneks" data-status="fail"
@@ -326,6 +427,9 @@
               <summary>details</summary>
 <p>system:anonymous is bound via a ClusterRoleBinding.</p><p class="remediation">→ Remove the ClusterRoleBinding granting access to system:anonymous.</p>              <p><span class="pill">id: 42932be4a39b</span> <span class="pill">check: disable_anonymous_access_for_cluster_roles</span> <span class="pill">source: hardeneks</span></p>
             </details>
+            <div class="print-only">
+<p style="margin:4px 0">system:anonymous is bound via a ClusterRoleBinding.</p><p class="remediation" style="margin:4px 0">→ Remove the ClusterRoleBinding granting access to system:anonymous.</p>              <p style="font-size:11px;color:#6b7280">check: disable_anonymous_access_for_cluster_roles · source: hardeneks</p>
+            </div>
           </td>
         </tr>
         <tr class="frow" data-sev="High" data-tool="prowler" data-status="fail"
@@ -341,6 +445,9 @@
               <summary>details</summary>
 <p>sg-0a1b2c3d allows inbound 22 from anywhere.</p><p class="remediation">→ Restrict ingress to known CIDR ranges or use SSM Session Manager.</p>              <p><span class="pill">id: 555f22b2f64a</span> <span class="pill">check: ec2_sg_open_ssh</span> <span class="pill">source: prowler</span></p>
             </details>
+            <div class="print-only">
+<p style="margin:4px 0">sg-0a1b2c3d allows inbound 22 from anywhere.</p><p class="remediation" style="margin:4px 0">→ Restrict ingress to known CIDR ranges or use SSM Session Manager.</p>              <p style="font-size:11px;color:#6b7280">check: ec2_sg_open_ssh · source: prowler</p>
+            </div>
           </td>
         </tr>
         <tr class="frow" data-sev="Medium" data-tool="prowler" data-status="fail"
@@ -356,6 +463,9 @@
               <summary>details</summary>
 <p>Trail lacks log file integrity validation.</p><p class="remediation">→ Enable log file validation on the trail.</p>              <p><span class="pill">id: 41a7cfd5da13</span> <span class="pill">check: cloudtrail_log_validation</span> <span class="pill">source: prowler</span></p>
             </details>
+            <div class="print-only">
+<p style="margin:4px 0">Trail lacks log file integrity validation.</p><p class="remediation" style="margin:4px 0">→ Enable log file validation on the trail.</p>              <p style="font-size:11px;color:#6b7280">check: cloudtrail_log_validation · source: prowler</p>
+            </div>
           </td>
         </tr>
         <tr class="frow" data-sev="Info" data-tool="prowler" data-status="pass"
@@ -371,6 +481,9 @@
               <summary>details</summary>
 <p>Org multi-region trail present.</p>              <p><span class="pill">id: eb25a62c644e</span> <span class="pill">check: cloudtrail_multi_region</span> <span class="pill">source: prowler</span></p>
             </details>
+            <div class="print-only">
+<p style="margin:4px 0">Org multi-region trail present.</p>              <p style="font-size:11px;color:#6b7280">check: cloudtrail_multi_region · source: prowler</p>
+            </div>
           </td>
         </tr>
         <tr class="frow" data-sev="Info" data-tool="prowler" data-status="pass"
@@ -386,6 +499,9 @@
               <summary>details</summary>
 <p>prod-db has storage encryption enabled.</p>              <p><span class="pill">id: 779156f1bfa2</span> <span class="pill">check: rds_encryption_enabled</span> <span class="pill">source: prowler</span></p>
             </details>
+            <div class="print-only">
+<p style="margin:4px 0">prod-db has storage encryption enabled.</p>              <p style="font-size:11px;color:#6b7280">check: rds_encryption_enabled · source: prowler</p>
+            </div>
           </td>
         </tr>
       </tbody>

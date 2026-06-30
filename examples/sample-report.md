@@ -62,6 +62,14 @@
 | cloudsplaining | ok | 2 | cloudsplaining 0.7.0 |  |
 | hardeneks | ok | 1 | hardeneks 0.12.0 |  |
 
+## EKS Hardening
+
+In-cluster best-practice checks (hardeneks), grouped by cluster.
+
+| Severity | Cluster / resource | Region | Finding |
+|----------|--------------------|--------|---------|
+| High | `prod-cluster/kube-system` | eu-central-1 | Anonymous access bound to cluster role |
+
 ## All findings
 
 ### [Critical] Root account has no MFA
