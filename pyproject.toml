@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sentryhive"
-version = "0.1.0"
+version = "0.0.1"
 description = "Clone, point it at an AWS account, and get a clean security report from best-in-class open-source scanners."
 readme = "README.md"
 requires-python = ">=3.10"
