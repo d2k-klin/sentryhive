@@ -1,0 +1,24 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths: ["**/*.md", "docs/**"]
+  pull_request:
+    paths: ["**/*.md", "docs/**"]
+
+jobs:
+  link-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Markdown links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          # Check local + repo links; ignore example/placeholder hosts and anchors-only.
+          args: >-
+            --no-progress
+            --exclude '^https://github.com/d2k-klin/sentryhive'
+            --exclude '123456789012'
+            './**/*.md'
+          fail: true
