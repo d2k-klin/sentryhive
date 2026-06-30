@@ -127,8 +127,9 @@ def _render_weasyprint(html: str, pdf_path: str) -> None:
 
 
 def _render_chromium(html: str, pdf_path: str) -> None:
-    chrome = next((c for c in ("chromium", "chromium-browser", "google-chrome",
-                               "google-chrome-stable") if shutil.which(c)), None)
+    chrome = next(
+        (c for c in ("chromium", "chromium-browser", "google-chrome", "google-chrome-stable") if shutil.which(c)), None
+    )
     if not chrome:
         raise PdfError("no Chromium/Chrome binary found on PATH for --pdf-engine chromium")
     with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False) as tmp:
@@ -136,9 +137,19 @@ def _render_chromium(html: str, pdf_path: str) -> None:
         tmp_path = tmp.name
     try:
         proc = subprocess.run(
-            [chrome, "--headless", "--no-sandbox", "--disable-gpu",
-             f"--print-to-pdf={pdf_path}", "--no-pdf-header-footer", f"file://{tmp_path}"],
-            capture_output=True, text=True, timeout=120, check=False,
+            [
+                chrome,
+                "--headless",
+                "--no-sandbox",
+                "--disable-gpu",
+                f"--print-to-pdf={pdf_path}",
+                "--no-pdf-header-footer",
+                f"file://{tmp_path}",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
         )
         if not os.path.exists(pdf_path):
             raise PdfError(f"chromium failed to produce a PDF: {proc.stderr[-300:]}")

@@ -12,10 +12,12 @@ def test_parse_prowler_ocsf():
         {
             "severity": "High",
             "status_code": "FAIL",
-            "finding_info": {"uid": "s3_bucket_public", "title": "S3 bucket is public",
-                              "desc": "Bucket allows public reads"},
-            "resources": [{"uid": "arn:aws:s3:::my-bucket", "region": "us-east-1",
-                            "group": {"name": "s3"}}],
+            "finding_info": {
+                "uid": "s3_bucket_public",
+                "title": "S3 bucket is public",
+                "desc": "Bucket allows public reads",
+            },
+            "resources": [{"uid": "arn:aws:s3:::my-bucket", "region": "us-east-1", "group": {"name": "s3"}}],
             "remediation": {"desc": "Block public access"},
             "cloud": {"account": {"uid": "123456789012"}, "region": "us-east-1"},
             "unmapped": {"compliance": {"CIS": ["2.1.5"]}},
@@ -74,9 +76,13 @@ def test_parse_cloudsplaining():
 def test_parse_hardeneks():
     raw = {
         "findings": [
-            {"rule": "disable_anonymous_access", "title": "Anonymous access enabled",
-             "severity": "high", "namespace": "kube-system",
-             "remediation": "Remove the binding"}
+            {
+                "rule": "disable_anonymous_access",
+                "title": "Anonymous access enabled",
+                "severity": "high",
+                "namespace": "kube-system",
+                "remediation": "Remove the binding",
+            }
         ]
     }
     f = parse_hardeneks(raw, account_id="123456789012", region="eu-central-1")[0]
@@ -89,9 +95,15 @@ def test_parse_hardeneks():
 def test_parse_ash():
     raw = {
         "findings": [
-            {"rule_id": "CKV_AWS_18", "title": "S3 access logging disabled",
-             "severity": "medium", "file_path": "main.tf", "line": 12,
-             "scanner": "checkov", "remediation": "Enable logging"}
+            {
+                "rule_id": "CKV_AWS_18",
+                "title": "S3 access logging disabled",
+                "severity": "medium",
+                "file_path": "main.tf",
+                "line": 12,
+                "scanner": "checkov",
+                "remediation": "Enable logging",
+            }
         ]
     }
     f = parse_ash(raw)[0]

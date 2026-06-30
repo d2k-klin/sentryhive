@@ -89,8 +89,7 @@ class Report:
                 "by_severity": self.severity_counts,
                 "by_status": self.status_counts,
                 "services": self.services,
-                "compliance": [vars(c) | {"pass_pct": c.pass_pct, "total": c.total}
-                               for c in self.compliance],
+                "compliance": [vars(c) | {"pass_pct": c.pass_pct, "total": c.total} for c in self.compliance],
             },
             "scanners": [vars(s) for s in self.scanners],
             "findings": [f.to_dict() for f in self.findings],
@@ -155,12 +154,15 @@ def compliance_posture(findings: list[Finding]) -> list[FrameworkPosture]:
 def iam_highlights(findings: list[Finding], limit: int = 5) -> list[Finding]:
     """The privilege-escalation / IAM-takeover narrative for the exec summary."""
     priv = [
-        f for f in findings
+        f
+        for f in findings
         if f.status == "fail"
         and (f.tool == "cloudsplaining" or f.service == "iam")
-        and ("escalat" in (f.check + f.title).lower()
-             or "exposure" in (f.check + f.title).lower()
-             or f.tool == "cloudsplaining")
+        and (
+            "escalat" in (f.check + f.title).lower()
+            or "exposure" in (f.check + f.title).lower()
+            or f.tool == "cloudsplaining"
+        )
     ]
     return rank(priv)[:limit]
 
@@ -170,8 +172,9 @@ def _summaries(results: list[ScanResult]) -> tuple[list[Finding], list[ScannerSu
     summaries: list[ScannerSummary] = []
     for r in results:
         summaries.append(
-            ScannerSummary(name=r.scanner, status=r.status.value,
-                           findings=len(r.findings), message=r.message, version=r.version)
+            ScannerSummary(
+                name=r.scanner, status=r.status.value, findings=len(r.findings), message=r.message, version=r.version
+            )
         )
         all_findings.extend(r.findings)
     return all_findings, summaries
@@ -223,8 +226,9 @@ def build_report(
     )
 
 
-def build_rollup(reports: list[Report], *, generated_at: str, client_name: str = "",
-                 logo_data_uri: str = "", top_n: int = 10) -> Report:
+def build_rollup(
+    reports: list[Report], *, generated_at: str, client_name: str = "", logo_data_uri: str = "", top_n: int = 10
+) -> Report:
     """Combine per-account reports into one roll-up across all scanned accounts.
 
     Findings keep their account_id so the consultant can trace each back; the roll-up

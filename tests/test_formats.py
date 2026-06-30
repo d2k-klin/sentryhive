@@ -12,13 +12,33 @@ _WEASY = importlib.util.find_spec("weasyprint") is not None
 
 
 def _report():
-    results = [ScanResult("prowler", ScanStatus.OK, findings=[
-        Finding(tool="prowler", check="s3_public", title="S3 public", description="d",
-                severity=Severity.CRITICAL, service="s3", resource="b", status="fail",
-                compliance_refs=["CIS:2.1.5"]),
-    ])]
-    return build_report(results, account_id="123", identity_arn="arn", regions=["us-east-1"],
-                        generated_at="now", client_name="Acme Corp")
+    results = [
+        ScanResult(
+            "prowler",
+            ScanStatus.OK,
+            findings=[
+                Finding(
+                    tool="prowler",
+                    check="s3_public",
+                    title="S3 public",
+                    description="d",
+                    severity=Severity.CRITICAL,
+                    service="s3",
+                    resource="b",
+                    status="fail",
+                    compliance_refs=["CIS:2.1.5"],
+                ),
+            ],
+        )
+    ]
+    return build_report(
+        results,
+        account_id="123",
+        identity_arn="arn",
+        regions=["us-east-1"],
+        generated_at="now",
+        client_name="Acme Corp",
+    )
 
 
 def test_valid_formats_set():

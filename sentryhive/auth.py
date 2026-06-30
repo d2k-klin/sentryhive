@@ -131,10 +131,7 @@ def build_contexts(
     """
     if not role_arns:
         return [build_context(profile=profile, external_id=external_id, regions=regions)]
-    return [
-        build_context(profile=profile, role_arn=arn, external_id=external_id, regions=regions)
-        for arn in role_arns
-    ]
+    return [build_context(profile=profile, role_arn=arn, external_id=external_id, regions=regions) for arn in role_arns]
 
 
 def discover_eks_clusters(ctx: AwsContext) -> list[str]:

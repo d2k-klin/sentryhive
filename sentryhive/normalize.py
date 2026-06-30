@@ -60,8 +60,11 @@ def _prowler_ocsf(row: dict) -> Finding:
         region=str(_get(res, "region", default=cloud.get("region", ""))),
         status="pass" if status_code == "pass" else "fail" if status_code == "fail" else "info",
         remediation=str(_get(remediation, "desc", "description", default="")),
-        compliance_refs=_compliance_list(row.get("unmapped", {}).get("compliance")
-                                         if isinstance(row.get("unmapped"), dict) else row.get("compliance")),
+        compliance_refs=_compliance_list(
+            row.get("unmapped", {}).get("compliance")
+            if isinstance(row.get("unmapped"), dict)
+            else row.get("compliance")
+        ),
         account_id=str(account.get("uid", "")),
     )
 

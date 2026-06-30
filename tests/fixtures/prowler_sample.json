@@ -1,0 +1,102 @@
+[
+  {
+    "severity": "Critical",
+    "status_code": "FAIL",
+    "finding_info": {
+      "uid": "iam_root_mfa_enabled",
+      "title": "Root account does not have MFA enabled",
+      "desc": "The root account has no MFA device configured, allowing password-only access to the most privileged identity."
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:iam::123456789012:root",
+        "name": "root",
+        "region": "us-east-1",
+        "group": {"name": "iam"}
+      }
+    ],
+    "remediation": {"desc": "Enable a hardware or virtual MFA device on the root account."},
+    "cloud": {"account": {"uid": "123456789012"}, "region": "us-east-1"},
+    "unmapped": {"compliance": {"CIS": ["1.5"], "PCI-DSS": ["8.3.1"]}}
+  },
+  {
+    "severity": "High",
+    "status_code": "FAIL",
+    "finding_info": {
+      "uid": "s3_bucket_public_access",
+      "title": "S3 bucket allows public access",
+      "desc": "The bucket ACL or policy permits unauthenticated reads."
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:s3:::example-public-assets",
+        "name": "example-public-assets",
+        "region": "eu-central-1",
+        "group": {"name": "s3"}
+      }
+    ],
+    "remediation": {"desc": "Enable S3 Block Public Access at the account level or restrict the bucket policy."},
+    "cloud": {"account": {"uid": "123456789012"}, "region": "eu-central-1"},
+    "unmapped": {"compliance": {"CIS": ["2.1.5"]}}
+  },
+  {
+    "severity": "Medium",
+    "status_code": "FAIL",
+    "finding_info": {
+      "uid": "cloudtrail_multi_region_enabled",
+      "title": "CloudTrail is not enabled in all regions",
+      "desc": "Multi-region trail is not configured, leaving API activity in some regions unmonitored."
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:cloudtrail:us-east-1:123456789012:trail/main-trail",
+        "name": "main-trail",
+        "region": "us-east-1",
+        "group": {"name": "cloudtrail"}
+      }
+    ],
+    "remediation": {"desc": "Create a multi-region trail or update the existing trail to cover all regions."},
+    "cloud": {"account": {"uid": "123456789012"}, "region": "us-east-1"},
+    "unmapped": {"compliance": {"CIS": ["3.1"], "NIST": ["AU-2"]}}
+  },
+  {
+    "severity": "Low",
+    "status_code": "PASS",
+    "finding_info": {
+      "uid": "iam_password_policy_length",
+      "title": "IAM password policy requires minimum 14 characters",
+      "desc": "Password policy meets the recommended minimum length."
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:iam::123456789012:account-password-policy",
+        "name": "password-policy",
+        "region": "us-east-1",
+        "group": {"name": "iam"}
+      }
+    ],
+    "remediation": {"desc": "No action required."},
+    "cloud": {"account": {"uid": "123456789012"}, "region": "us-east-1"},
+    "unmapped": {"compliance": {"CIS": ["1.8"]}}
+  },
+  {
+    "severity": "High",
+    "status_code": "FAIL",
+    "finding_info": {
+      "uid": "ec2_security_group_open_to_world",
+      "title": "Security group allows unrestricted ingress on port 22",
+      "desc": "The security group permits SSH access from 0.0.0.0/0."
+    },
+    "resources": [
+      {
+        "uid": "arn:aws:ec2:eu-central-1:123456789012:security-group/sg-0abc123def456789",
+        "name": "sg-0abc123def456789",
+        "region": "eu-central-1",
+        "group": {"name": "ec2"}
+      }
+    ],
+    "remediation": {"desc": "Restrict the security group inbound rule to specific CIDR ranges or use a bastion host."},
+    "cloud": {"account": {"uid": "123456789012"}, "region": "eu-central-1"},
+    "unmapped": {"compliance": {"CIS": ["5.2"], "NIST": ["SC-7"]}}
+  }
+]

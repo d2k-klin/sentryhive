@@ -22,10 +22,14 @@ class ProwlerScanner(Scanner):
         env = session_env(ctx)
 
         cmd = [
-            "prowler", "aws",
-            "--output-formats", "json-ocsf",
-            "--output-directory", out_dir,
-            "--output-filename", "prowler",
+            "prowler",
+            "aws",
+            "--output-formats",
+            "json-ocsf",
+            "--output-directory",
+            out_dir,
+            "--output-filename",
+            "prowler",
             "--ignore-exit-code-3",  # don't fail the process just because findings exist
         ]
         if ctx and ctx.regions:
@@ -35,9 +39,9 @@ class ProwlerScanner(Scanner):
         raw = _load_prowler_output(out_dir)
         if raw is None:
             return ScanResult(
-                self.name, ScanStatus.ERROR,
-                message=f"prowler produced no JSON output (exit {proc.returncode}). "
-                        f"stderr: {proc.stderr[-500:]}",
+                self.name,
+                ScanStatus.ERROR,
+                message=f"prowler produced no JSON output (exit {proc.returncode}). stderr: {proc.stderr[-500:]}",
             )
         findings = parse_prowler(raw)
         return ScanResult(self.name, ScanStatus.OK, findings=findings, raw=raw)

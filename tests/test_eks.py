@@ -7,13 +7,27 @@ from sentryhive.scanners.hardeneks import HardeneksScanner
 
 def _eks_report(tmp_path):
     from sentryhive.scanners.base import ScanResult
-    results = [ScanResult("hardeneks[prod-eks]", ScanStatus.OK, version="hardeneks 0.12", findings=[
-        Finding(tool="hardeneks", check="disable_anonymous_access", title="Anonymous access",
-                description="d", severity=Severity.HIGH, service="eks",
-                resource="prod-eks/kube-system", region="eu-central-1"),
-    ])]
-    return build_report(results, account_id="123", identity_arn="arn", regions=["eu-central-1"],
-                        generated_at="now")
+
+    results = [
+        ScanResult(
+            "hardeneks[prod-eks]",
+            ScanStatus.OK,
+            version="hardeneks 0.12",
+            findings=[
+                Finding(
+                    tool="hardeneks",
+                    check="disable_anonymous_access",
+                    title="Anonymous access",
+                    description="d",
+                    severity=Severity.HIGH,
+                    service="eks",
+                    resource="prod-eks/kube-system",
+                    region="eu-central-1",
+                ),
+            ],
+        )
+    ]
+    return build_report(results, account_id="123", identity_arn="arn", regions=["eu-central-1"], generated_at="now")
 
 
 def test_eks_findings_grouped_separately():

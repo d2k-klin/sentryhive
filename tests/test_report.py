@@ -8,16 +8,32 @@ from sentryhive.scanners.base import ScanResult, ScanStatus
 
 def _sample_report():
     results = [
-        ScanResult("prowler", ScanStatus.OK, findings=[
-            Finding(tool="prowler", check="s3_public", title="S3 bucket public",
-                    description="Bucket allows public reads", severity=Severity.CRITICAL,
-                    service="s3", resource="arn:aws:s3:::demo", region="us-east-1",
-                    remediation="Block public access", compliance_refs=["CIS:2.1.5"]),
-        ]),
+        ScanResult(
+            "prowler",
+            ScanStatus.OK,
+            findings=[
+                Finding(
+                    tool="prowler",
+                    check="s3_public",
+                    title="S3 bucket public",
+                    description="Bucket allows public reads",
+                    severity=Severity.CRITICAL,
+                    service="s3",
+                    resource="arn:aws:s3:::demo",
+                    region="us-east-1",
+                    remediation="Block public access",
+                    compliance_refs=["CIS:2.1.5"],
+                ),
+            ],
+        ),
     ]
-    return build_report(results, account_id="123456789012",
-                        identity_arn="arn:aws:iam::123456789012:user/auditor",
-                        regions=["us-east-1"], generated_at="2026-06-30 00:00:00 UTC")
+    return build_report(
+        results,
+        account_id="123456789012",
+        identity_arn="arn:aws:iam::123456789012:user/auditor",
+        regions=["us-east-1"],
+        generated_at="2026-06-30 00:00:00 UTC",
+    )
 
 
 def test_write_reports_creates_all_three(tmp_path):

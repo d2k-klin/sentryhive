@@ -4,8 +4,16 @@ from sentryhive.scanners.base import ScanResult, ScanStatus
 
 
 def _f(tool, sev, status="fail", service="iam", resource="role/x", check="overpriv"):
-    return Finding(tool=tool, check=check, title=f"{tool} finding", description="d",
-                   severity=sev, service=service, resource=resource, status=status)
+    return Finding(
+        tool=tool,
+        check=check,
+        title=f"{tool} finding",
+        description="d",
+        severity=sev,
+        service=service,
+        resource=resource,
+        status=status,
+    )
 
 
 def test_dedup_collapses_same_resource_check_keeps_highest():
@@ -45,15 +53,22 @@ def test_rank_orders_by_severity_then_status():
 
 def test_build_report_summary_counts_and_top_risks():
     results = [
-        ScanResult("prowler", ScanStatus.OK, findings=[
-            _f("prowler", Severity.CRITICAL, resource="r1"),
-            _f("prowler", Severity.LOW, resource="r2", status="pass"),
-        ]),
+        ScanResult(
+            "prowler",
+            ScanStatus.OK,
+            findings=[
+                _f("prowler", Severity.CRITICAL, resource="r1"),
+                _f("prowler", Severity.LOW, resource="r2", status="pass"),
+            ],
+        ),
         ScanResult("ash", ScanStatus.SKIPPED, message="not installed"),
     ]
     report = build_report(
-        results, account_id="123", identity_arn="arn:aws:iam::123:user/me",
-        regions=["us-east-1"], generated_at="now",
+        results,
+        account_id="123",
+        identity_arn="arn:aws:iam::123:user/me",
+        regions=["us-east-1"],
+        generated_at="now",
     )
     assert report.total == 2
     assert report.severity_counts["Critical"] == 1

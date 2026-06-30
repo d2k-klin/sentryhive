@@ -26,8 +26,7 @@ class AshScanner(Scanner):
 
     def _scan(self, ctx: AwsContext | None, workdir: str) -> ScanResult:
         if not os.path.isdir(self.source_dir):
-            return ScanResult(self.name, ScanStatus.ERROR,
-                              message=f"source dir not found: {self.source_dir}")
+            return ScanResult(self.name, ScanStatus.ERROR, message=f"source dir not found: {self.source_dir}")
         out_dir = os.path.join(workdir, "ash")
         os.makedirs(out_dir, exist_ok=True)
 
@@ -37,7 +36,8 @@ class AshScanner(Scanner):
         raw = _load_ash_results(out_dir)
         if raw is None:
             return ScanResult(
-                self.name, ScanStatus.SKIPPED,
+                self.name,
+                ScanStatus.SKIPPED,
                 message="ASH produced no parseable JSON results (nothing to scan or unsupported version).",
             )
         findings = parse_ash(raw)
@@ -45,9 +45,8 @@ class AshScanner(Scanner):
 
 
 def _load_ash_results(out_dir: str):
-    candidates = (
-        glob.glob(os.path.join(out_dir, "**", "*aggregated*results*.json"), recursive=True)
-        + glob.glob(os.path.join(out_dir, "**", "*.json"), recursive=True)
+    candidates = glob.glob(os.path.join(out_dir, "**", "*aggregated*results*.json"), recursive=True) + glob.glob(
+        os.path.join(out_dir, "**", "*.json"), recursive=True
     )
     for path in sorted(candidates, key=os.path.getmtime, reverse=True):
         try:

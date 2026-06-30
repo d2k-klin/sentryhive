@@ -31,7 +31,8 @@ class HardeneksScanner(Scanner):
     def _scan(self, ctx: AwsContext | None, workdir: str) -> ScanResult:
         if not self.cluster:
             return ScanResult(
-                self.name, ScanStatus.SKIPPED,
+                self.name,
+                ScanStatus.SKIPPED,
                 message="no EKS cluster specified (use --eks --clusters ...).",
             )
         safe = self.cluster.replace("/", "_")
@@ -48,24 +49,25 @@ class HardeneksScanner(Scanner):
             kubeconfig = os.path.join(out_dir, "kubeconfig")
             env["KUBECONFIG"] = kubeconfig
             upd = self._exec(
-                ["aws", "eks", "update-kubeconfig", "--name", self.cluster,
-                 *(["--region", region] if region else [])],
+                ["aws", "eks", "update-kubeconfig", "--name", self.cluster, *(["--region", region] if region else [])],
                 env=env,
             )
             if upd.returncode != 0:
                 return ScanResult(
-                    self.name, ScanStatus.SKIPPED,
+                    self.name,
+                    ScanStatus.SKIPPED,
                     message=f"could not configure kubeconfig for '{self.cluster}' "
-                            f"(cluster not found or no eks:DescribeCluster): {upd.stderr.strip()[-300:]}",
+                    f"(cluster not found or no eks:DescribeCluster): {upd.stderr.strip()[-300:]}",
                 )
 
         # Preflight: confirm we actually have in-cluster read access before scanning.
         ok, detail = self._preflight(env)
         if not ok:
             return ScanResult(
-                self.name, ScanStatus.SKIPPED,
+                self.name,
+                ScanStatus.SKIPPED,
                 message=f"no in-cluster access to '{self.cluster}' ({detail}). "
-                        "Grant a read-only EKS access entry / RBAC binding — see docs/eks-access.md.",
+                "Grant a read-only EKS access entry / RBAC binding — see docs/eks-access.md.",
             )
 
         export = os.path.join(out_dir, "hardeneks.json")
@@ -75,8 +77,9 @@ class HardeneksScanner(Scanner):
         )
         raw = _load_json(export)
         if raw is None:
-            return ScanResult(self.name, ScanStatus.ERROR,
-                              message=f"hardeneks produced no JSON output for '{self.cluster}'")
+            return ScanResult(
+                self.name, ScanStatus.ERROR, message=f"hardeneks produced no JSON output for '{self.cluster}'"
+            )
         findings = parse_hardeneks(raw, account_id=account_id, region=region)
         # Tag each finding with its cluster so the consolidated report can group them.
         for f in findings:
@@ -91,6 +94,7 @@ class HardeneksScanner(Scanner):
         as a failed probe, which we translate into a graceful per-cluster skip.
         """
         import shutil
+
         if shutil.which("kubectl") is None:
             return False, "kubectl not on PATH"
         probe = self._exec(["kubectl", "auth", "can-i", "list", "pods", "-A"], env=env, timeout=60)

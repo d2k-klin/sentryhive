@@ -31,28 +31,27 @@ class CloudsplainingScanner(Scanner):
         )
         if not os.path.exists(auth_file):
             return ScanResult(
-                self.name, ScanStatus.ERROR,
+                self.name,
+                ScanStatus.ERROR,
                 message=f"cloudsplaining download failed (exit {dl.returncode}): {dl.stderr[-400:]}",
             )
 
         # `scan` writes results JSON into the output directory.
         self._exec(
-            ["cloudsplaining", "scan", "--input-file", auth_file,
-             "--output", out_dir],
+            ["cloudsplaining", "scan", "--input-file", auth_file, "--output", out_dir],
             env=env,
         )
         raw = _load_results_json(out_dir)
         if raw is None:
-            return ScanResult(self.name, ScanStatus.ERROR,
-                              message="cloudsplaining produced no JSON results")
+            return ScanResult(self.name, ScanStatus.ERROR, message="cloudsplaining produced no JSON results")
         findings = parse_cloudsplaining(raw, account_id=account_id)
         return ScanResult(self.name, ScanStatus.OK, findings=findings, raw=raw)
 
 
 def _load_results_json(out_dir: str):
     import glob
-    for path in sorted(glob.glob(os.path.join(out_dir, "*.json")),
-                       key=os.path.getmtime, reverse=True):
+
+    for path in sorted(glob.glob(os.path.join(out_dir, "*.json")), key=os.path.getmtime, reverse=True):
         if path.endswith("account-authorization-details.json"):
             continue
         try:

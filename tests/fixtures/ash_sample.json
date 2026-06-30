@@ -1,0 +1,44 @@
+{
+  "findings": [
+    {
+      "rule_id": "CKV_AWS_18",
+      "title": "S3 bucket access logging not enabled",
+      "description": "The S3 bucket does not have server access logging enabled.",
+      "severity": "medium",
+      "file_path": "infra/main.tf",
+      "line": 42,
+      "scanner": "checkov",
+      "remediation": "Add a logging configuration block to the aws_s3_bucket resource."
+    },
+    {
+      "rule_id": "CKV_AWS_145",
+      "title": "S3 bucket not encrypted with KMS",
+      "description": "The S3 bucket uses default encryption (AES-256) instead of a customer-managed KMS key.",
+      "severity": "low",
+      "file_path": "infra/main.tf",
+      "line": 55,
+      "scanner": "checkov",
+      "remediation": "Specify a KMS key ARN in the server_side_encryption_configuration."
+    },
+    {
+      "rule_id": "CKV_AWS_79",
+      "title": "EC2 instance metadata service v2 not enforced",
+      "description": "IMDSv1 is still allowed, enabling SSRF-based credential theft.",
+      "severity": "high",
+      "file_path": "infra/ec2.tf",
+      "line": 18,
+      "scanner": "checkov",
+      "remediation": "Set http_tokens = 'required' in the metadata_options block."
+    },
+    {
+      "rule_id": "SECRET_001",
+      "title": "Hardcoded AWS access key detected",
+      "description": "A potential AWS access key was found in the source code.",
+      "severity": "critical",
+      "file_path": "scripts/deploy.sh",
+      "line": 7,
+      "scanner": "git-secrets",
+      "remediation": "Remove the credential from source and rotate the exposed key immediately."
+    }
+  ]
+}

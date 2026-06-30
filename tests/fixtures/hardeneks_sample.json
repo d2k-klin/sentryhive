@@ -1,0 +1,40 @@
+{
+  "findings": [
+    {
+      "rule": "disable_anonymous_access",
+      "title": "Anonymous access enabled on cluster",
+      "description": "The cluster allows unauthenticated API access via system:anonymous binding.",
+      "severity": "high",
+      "namespace": "kube-system",
+      "resources": ["clusterrolebinding/anonymous-access"],
+      "remediation": "Remove the ClusterRoleBinding granting access to system:anonymous."
+    },
+    {
+      "rule": "use_encryption_at_rest",
+      "title": "EKS secrets encryption not enabled",
+      "description": "Kubernetes secrets are stored unencrypted in etcd.",
+      "severity": "medium",
+      "namespace": "cluster",
+      "resources": ["cluster/prod-eks"],
+      "remediation": "Enable envelope encryption with a KMS key for secrets at rest."
+    },
+    {
+      "rule": "restrict_wildcard_permissions",
+      "title": "Wildcard permissions in ClusterRole",
+      "description": "A ClusterRole grants * verbs on * resources, violating least privilege.",
+      "severity": "high",
+      "namespace": "default",
+      "resources": ["clusterrole/overly-permissive"],
+      "remediation": "Scope the ClusterRole to specific resources and verbs needed."
+    },
+    {
+      "rule": "use_network_policies",
+      "title": "No NetworkPolicy defined in namespace",
+      "description": "The namespace has no NetworkPolicy, allowing unrestricted pod-to-pod traffic.",
+      "severity": "medium",
+      "namespace": "default",
+      "resources": ["namespace/default"],
+      "remediation": "Define default-deny NetworkPolicies and allow only required traffic."
+    }
+  ]
+}

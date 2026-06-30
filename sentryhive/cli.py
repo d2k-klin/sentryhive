@@ -52,7 +52,10 @@ def _version_callback(value: bool):
 @app.callback()
 def main(
     _version: bool = typer.Option(
-        False, "--version", callback=_version_callback, is_eager=True,
+        False,
+        "--version",
+        callback=_version_callback,
+        is_eager=True,
         help="Show version and exit.",
     ),
 ):
@@ -77,15 +80,17 @@ def scanners():
 def scan(
     profile: str = typer.Option(None, "--profile", help="AWS profile name."),
     role_arn: list[str] = typer.Option(
-        None, "--role-arn",
+        None,
+        "--role-arn",
         help="IAM role ARN to assume (STS). Repeat for multi-account scans.",
     ),
     external_id: str = typer.Option(None, "--external-id", help="External ID for role assumption."),
     regions: str = typer.Option(None, "--regions", help="Comma-separated regions (e.g. eu-central-1,us-east-1)."),
     scanners_opt: str = typer.Option(
-        ",".join(CORE_SCANNERS), "--scanners",
+        ",".join(CORE_SCANNERS),
+        "--scanners",
         help=f"Comma-separated account scanners. Core: {', '.join(CORE_SCANNERS)}. "
-             "Add 'ash' for local IaC. (EKS hardening is enabled with --eks.)",
+        "Add 'ash' for local IaC. (EKS hardening is enabled with --eks.)",
     ),
     eks: bool = typer.Option(False, "--eks", help="Run EKS hardening (opt-in; needs in-cluster RBAC access)."),
     clusters: str = typer.Option(None, "--clusters", help="Comma-separated EKS clusters (default: all detected)."),
@@ -94,7 +99,8 @@ def scan(
     client_name: str = typer.Option(None, "--client-name", help="Client/engagement name for the report header."),
     logo: str = typer.Option(None, "--logo", help="Path to a logo image embedded in the report header."),
     output_formats: str = typer.Option(
-        ",".join(DEFAULT_FORMATS), "--format",
+        ",".join(DEFAULT_FORMATS),
+        "--format",
         help="Comma-separated output formats: html, md, json, pdf.",
     ),
     pdf: bool = typer.Option(False, "--pdf", help="Shorthand to add PDF output (the client deliverable)."),
@@ -102,9 +108,10 @@ def scan(
     out_dir: str = typer.Option("./reports", "--out", help="Output directory for reports."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
     fail_on: str = typer.Option(
-        None, "--fail-on",
+        None,
+        "--fail-on",
         help="Exit non-zero if any finding at/above this severity exists "
-             "(critical|high|medium|low). Useful as a CI gate.",
+        "(critical|high|medium|low). Useful as a CI gate.",
     ),
 ):
     """Run the selected scanners and produce a consolidated report.
@@ -146,8 +153,10 @@ def scan(
     if needs_aws:
         try:
             contexts = build_contexts(
-                profile=profile, role_arns=role_arn or None,
-                external_id=external_id, regions=region_list,
+                profile=profile,
+                role_arns=role_arn or None,
+                external_id=external_id,
+                regions=region_list,
             )
         except AuthError as exc:
             console.print(f"[red]Authentication failed:[/red] {exc}")
@@ -158,7 +167,10 @@ def scan(
         for ctx in contexts:
             console.rule(f"[bold]Account {ctx.identity.account_id}[/bold]")
             scanner_objs = build_scanners(aws_selected) + _eks_scanners(
-                ctx, eks_requested, cluster_list, kubeconfig,
+                ctx,
+                eks_requested,
+                cluster_list,
+                kubeconfig,
             )
             with tempfile.TemporaryDirectory(prefix="sentryhive-") as workdir:
                 results = _run(scanner_objs, ctx, workdir)
@@ -178,8 +190,9 @@ def scan(
 
         if len(reports) > 1:
             console.rule("[bold]Roll-up across accounts[/bold]")
-            rollup = build_rollup(reports, generated_at=generated_at,
-                                  client_name=client_name or "", logo_data_uri=logo_uri)
+            rollup = build_rollup(
+                reports, generated_at=generated_at, client_name=client_name or "", logo_data_uri=logo_uri
+            )
             paths = write_reports(rollup, out_dir, **write_kwargs)
             _print_summary(rollup, paths)
             reports.append(rollup)
@@ -190,8 +203,12 @@ def scan(
         with tempfile.TemporaryDirectory(prefix="sentryhive-ash-") as workdir:
             results = _run([ash], None, workdir)
             ash_report = build_report(
-                results, account_id="", identity_arn="", regions=[],
-                generated_at=generated_at, client_name=client_name or "",
+                results,
+                account_id="",
+                identity_arn="",
+                regions=[],
+                generated_at=generated_at,
+                client_name=client_name or "",
                 logo_data_uri=logo_uri,
             )
         target = out_dir if not needs_aws else os.path.join(out_dir, "local-iac")
@@ -281,15 +298,12 @@ def _maybe_fail_on(reports, fail_on):
     if not fail_on:
         return
     from sentryhive.models import Severity
+
     threshold = Severity.parse(fail_on)
-    breaching = [
-        f for r in reports for f in r.findings
-        if f.status == "fail" and f.severity >= threshold
-    ]
+    breaching = [f for r in reports for f in r.findings if f.status == "fail" and f.severity >= threshold]
     if breaching:
         console.print(
-            f"[red]✗ {len(breaching)} finding(s) at or above {threshold.label} "
-            f"— failing per --fail-on.[/red]"
+            f"[red]✗ {len(breaching)} finding(s) at or above {threshold.label} — failing per --fail-on.[/red]"
         )
         raise typer.Exit(code=3)
 

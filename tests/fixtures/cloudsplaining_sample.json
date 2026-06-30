@@ -1,0 +1,28 @@
+{
+  "results": {
+    "AdminPolicy": {
+      "PrivilegeEscalation": [
+        {"type": "CreateAccessKey", "actions": ["iam:CreateAccessKey"]},
+        {"type": "CreateLoginProfile", "actions": ["iam:CreateLoginProfile"]}
+      ],
+      "DataExfiltration": ["s3:GetObject", "s3:ListBucket"],
+      "ResourceExposure": ["iam:PassRole", "iam:PutRolePolicy"],
+      "CredentialsExposure": [],
+      "ServiceWildcard": []
+    },
+    "DeveloperPolicy": {
+      "PrivilegeEscalation": [],
+      "DataExfiltration": [],
+      "ResourceExposure": [],
+      "CredentialsExposure": ["sts:AssumeRole"],
+      "ServiceWildcard": ["s3:*"]
+    },
+    "ReadOnlyPolicy": {
+      "PrivilegeEscalation": [],
+      "DataExfiltration": [],
+      "ResourceExposure": [],
+      "CredentialsExposure": [],
+      "ServiceWildcard": []
+    }
+  }
+}

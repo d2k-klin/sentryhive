@@ -15,8 +15,7 @@ def test_severity_ordering():
 
 
 def test_finding_autofills_id_and_coerces_severity():
-    f = Finding(tool="prowler", check="c1", title="t", description="d", severity="high",
-                resource="arn:aws:s3:::bucket")
+    f = Finding(tool="prowler", check="c1", title="t", description="d", severity="high", resource="arn:aws:s3:::bucket")
     assert f.severity is Severity.HIGH
     assert f.id and len(f.id) == 12
     # Stable fingerprint.
@@ -25,10 +24,8 @@ def test_finding_autofills_id_and_coerces_severity():
 
 
 def test_dedup_key_ignores_tool():
-    a = Finding(tool="prowler", check="public", title="t", description="d",
-                service="s3", resource="b")
-    b = Finding(tool="cloudsplaining", check="public", title="t", description="d",
-                service="s3", resource="b")
+    a = Finding(tool="prowler", check="public", title="t", description="d", service="s3", resource="b")
+    b = Finding(tool="cloudsplaining", check="public", title="t", description="d", service="s3", resource="b")
     assert a.dedup_key == b.dedup_key
 
 

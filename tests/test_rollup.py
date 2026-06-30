@@ -5,13 +5,29 @@ from sentryhive.scanners.base import ScanResult, ScanStatus
 
 
 def _account_report(account_id, sev):
-    results = [ScanResult("prowler", ScanStatus.OK, findings=[
-        Finding(tool="prowler", check="root_mfa", title="Root MFA disabled", description="d",
-                severity=sev, service="iam", resource="root", status="fail",
-                compliance_refs=["CIS:1.5"], account_id=account_id),
-    ])]
-    return build_report(results, account_id=account_id, identity_arn=f"arn::{account_id}",
-                        regions=["us-east-1"], generated_at="now")
+    results = [
+        ScanResult(
+            "prowler",
+            ScanStatus.OK,
+            findings=[
+                Finding(
+                    tool="prowler",
+                    check="root_mfa",
+                    title="Root MFA disabled",
+                    description="d",
+                    severity=sev,
+                    service="iam",
+                    resource="root",
+                    status="fail",
+                    compliance_refs=["CIS:1.5"],
+                    account_id=account_id,
+                ),
+            ],
+        )
+    ]
+    return build_report(
+        results, account_id=account_id, identity_arn=f"arn::{account_id}", regions=["us-east-1"], generated_at="now"
+    )
 
 
 def test_rollup_combines_accounts_without_cross_account_dedup():
