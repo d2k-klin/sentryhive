@@ -65,6 +65,16 @@ class Report:
     def total(self) -> int:
         return len(self.findings)
 
+    @property
+    def eks_findings(self) -> list[Finding]:
+        """hardeneks findings, for the report's dedicated EKS Hardening section."""
+        return [f for f in self.findings if f.tool == "hardeneks"]
+
+    @property
+    def account_findings(self) -> list[Finding]:
+        """Non-EKS (IAM-only / account-level) findings."""
+        return [f for f in self.findings if f.tool != "hardeneks"]
+
     def to_dict(self) -> dict:
         return {
             "client_name": self.client_name,

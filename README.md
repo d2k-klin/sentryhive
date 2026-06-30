@@ -102,27 +102,32 @@ aws cloudformation deploy --template-file iam/audit-role.cfn.yaml \
 ```
 sentryhive scan [OPTIONS]
 
-  --profile TEXT          AWS profile name
-  --role-arn TEXT         IAM role ARN to assume (STS)
+  --role-arn TEXT         IAM role ARN to assume (STS). Repeat for multi-account.
   --external-id TEXT      External ID for role assumption
+  --profile TEXT          AWS profile name
   --regions TEXT          Comma-separated regions (eu-central-1,us-east-1)
-  --scanners TEXT         Which scanners to run (default: all)
-  --eks-cluster TEXT      EKS cluster name for hardeneks
+  --scanners TEXT         Scanners to run (default: prowler,cloudsplaining)
+  --eks-cluster TEXT      Force a specific EKS cluster for hardeneks
+  --no-auto-eks           Disable EKS auto-detection
   --source-dir TEXT       Directory ASH scans (default: CWD)
+  --client-name TEXT      Client/engagement name for the report header
+  --logo PATH             Logo image embedded in the report header
   --out TEXT              Output directory (default: ./reports)
   --yes, -y               Skip confirmation prompt
   --fail-on TEXT          Exit non-zero if any finding >= severity (CI gate)
 ```
 
-Exit codes: `0` success · `1` auth/all-scanners-failed · `2` bad arguments · `3` `--fail-on` threshold breached.
+Exit codes: `0` success · `1` auth failure · `2` bad arguments · `3` `--fail-on` threshold breached.
 
-## Reports
+## Reports — the deliverable
 
-Three artifacts per run:
+Per scan:
 
-- **`report.html`** — self-contained (inline CSS/JS), severity-colored, filterable by tool/severity/status/text, with an exec summary up top. See [`examples/sample-report.html`](examples/sample-report.html).
+- **`report.html`** — self-contained, **client-branded** (`--client-name`, `--logo`), severity-colored, filterable. Up top: scan-metadata/evidence block (accounts, identity, SentryHive + scanner versions, timestamp), **compliance posture per framework**, and **IAM privilege-escalation highlights**. See [`examples/sample-report.html`](examples/sample-report.html).
 - **`report.md`** — for PR comments and CI artifacts.
 - **`findings.json`** — machine-readable, the unified schema, for piping elsewhere.
+
+Multi-account runs produce a per-account report under `reports/<account-id>/` plus a cross-account roll-up at `reports/`.
 
 ### Unified finding schema
 

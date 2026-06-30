@@ -28,6 +28,7 @@ def build_scanners(
     names: list[str],
     *,
     eks_cluster: str | None = None,
+    kubeconfig: str | None = None,
     source_dir: str | None = None,
 ) -> list[Scanner]:
     """Instantiate the requested scanners, passing through per-scanner options."""
@@ -37,7 +38,7 @@ def build_scanners(
         if factory is None:
             raise KeyError(f"unknown scanner '{name}'. Available: {', '.join(ALL_SCANNERS)}")
         if name == "hardeneks":
-            scanners.append(factory(cluster=eks_cluster))
+            scanners.append(factory(cluster=eks_cluster, kubeconfig=kubeconfig))
         elif name == "ash":
             scanners.append(factory(source_dir=source_dir))
         else:

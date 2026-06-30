@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  SentryHive EKS read-only access (per cluster). This is the SECOND, OPT-IN
+  onboarding step — only needed if the client wants EKS hardening (hardeneks).
+  Account-level scanning (Prowler + Cloudsplaining) works with the read-only IAM
+  role alone and does NOT require this.
+
+  Creates an EKS access entry mapping the SentryHive audit principal to a read-only
+  Kubernetes group. Requires the cluster to use EKS access entries
+  (authenticationMode API or API_AND_CONFIG_MAP). For aws-auth/RBAC clusters, use
+  the ClusterRole/ClusterRoleBinding manifest in iam/eks-readonly-rbac.yaml instead.
+
+Parameters:
+  ClusterName:
+    Type: String
+    Description: Name of the EKS cluster to grant read-only audit access on.
+  AuditPrincipalArn:
+    Type: String
+    Description: >
+      ARN of the SentryHive audit principal (the same role used for the account
+      scan, e.g. arn:aws:iam::<client>:role/SentryHiveAudit).
+  KubernetesGroup:
+    Type: String
+    Default: sentryhive-readonly
+    Description: Kubernetes group bound to read-only RBAC inside the cluster.
+
+Resources:
+  SentryHiveAccessEntry:
+    Type: AWS::EKS::AccessEntry
+    Properties:
+      ClusterName: !Ref ClusterName
+      PrincipalArn: !Ref AuditPrincipalArn
+      Type: STANDARD
+      KubernetesGroups:
+        - !Ref KubernetesGroup
+
+Outputs:
+  Note:
+    Description: Next step
+    Value: >
+      Apply iam/eks-readonly-rbac.yaml to the cluster so the
+      'sentryhive-readonly' group has get/list/watch access, then run:
+      sentryhive scan --role-arn <audit-role> --eks --clusters <cluster>

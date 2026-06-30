@@ -2,7 +2,11 @@
 
 Tuned for the security-consultant / auditor workflow: cross-account assume-role is
 the primary auth path, several client accounts can be scanned in one run, and the
-output is an evidence-grade, optionally client-branded report.
+output is an evidence-grade, optionally client-branded report (HTML/MD/JSON/PDF).
+
+EKS hardening is a deliberately separate, opt-in phase (`--eks`): unlike the
+IAM-only scanners it needs in-cluster RBAC access, so it is never bundled silently
+into the default flow.
 """
 
 from __future__ import annotations
@@ -22,7 +26,7 @@ from rich.table import Table
 from sentryhive import __version__
 from sentryhive.aggregate import build_report, build_rollup
 from sentryhive.auth import AuthError, build_contexts, discover_eks_clusters
-from sentryhive.report import write_reports
+from sentryhive.report import VALID_FORMATS, write_reports
 from sentryhive.scanners import ALL_SCANNERS, build_scanners
 from sentryhive.scanners.ash import AshScanner
 from sentryhive.scanners.base import Scanner
@@ -30,6 +34,7 @@ from sentryhive.scanners.hardeneks import HardeneksScanner
 
 #: Default scanners for the consultant audience: compliance + IAM risk (addendum §2).
 CORE_SCANNERS = ["prowler", "cloudsplaining"]
+DEFAULT_FORMATS = ["html", "md", "json"]
 
 app = typer.Typer(
     add_completion=False,
@@ -63,8 +68,8 @@ def scanners():
     table.add_column("Target")
     table.add_row("prowler", "core", "live AWS account — config & compliance")
     table.add_row("cloudsplaining", "core", "live AWS account — IAM policy risk")
-    table.add_row("hardeneks", "auto-detected", "live EKS cluster(s)")
-    table.add_row("ash", "opt-in (v2 focus)", "local code/IaC on disk")
+    table.add_row("hardeneks", "opt-in (--eks)", "inside EKS cluster(s) — needs RBAC access")
+    table.add_row("ash", "opt-in (--scanners)", "local code/IaC on disk")
     console.print(table)
 
 
@@ -79,14 +84,21 @@ def scan(
     regions: str = typer.Option(None, "--regions", help="Comma-separated regions (e.g. eu-central-1,us-east-1)."),
     scanners_opt: str = typer.Option(
         ",".join(CORE_SCANNERS), "--scanners",
-        help=f"Comma-separated scanners. Core: {', '.join(CORE_SCANNERS)}. "
-             "hardeneks is auto-detected; add 'ash' for local IaC scanning.",
+        help=f"Comma-separated account scanners. Core: {', '.join(CORE_SCANNERS)}. "
+             "Add 'ash' for local IaC. (EKS hardening is enabled with --eks.)",
     ),
-    eks_cluster: str = typer.Option(None, "--eks-cluster", help="Force a specific EKS cluster for hardeneks."),
-    no_auto_eks: bool = typer.Option(False, "--no-auto-eks", help="Disable EKS auto-detection."),
+    eks: bool = typer.Option(False, "--eks", help="Run EKS hardening (opt-in; needs in-cluster RBAC access)."),
+    clusters: str = typer.Option(None, "--clusters", help="Comma-separated EKS clusters (default: all detected)."),
+    kubeconfig: str = typer.Option(None, "--kubeconfig", help="Path to a kubeconfig for EKS access."),
     source_dir: str = typer.Option(None, "--source-dir", help="Directory ASH scans (defaults to CWD)."),
     client_name: str = typer.Option(None, "--client-name", help="Client/engagement name for the report header."),
     logo: str = typer.Option(None, "--logo", help="Path to a logo image embedded in the report header."),
+    output_formats: str = typer.Option(
+        ",".join(DEFAULT_FORMATS), "--format",
+        help="Comma-separated output formats: html, md, json, pdf.",
+    ),
+    pdf: bool = typer.Option(False, "--pdf", help="Shorthand to add PDF output (the client deliverable)."),
+    pdf_engine: str = typer.Option("weasyprint", "--pdf-engine", help="PDF engine: weasyprint (default) or chromium."),
     out_dir: str = typer.Option("./reports", "--out", help="Output directory for reports."),
     yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation prompt."),
     fail_on: str = typer.Option(
@@ -97,11 +109,15 @@ def scan(
 ):
     """Run the selected scanners and produce a consolidated report.
 
-    Cross-account example (multi-account):
+    Cross-account example:
 
         sentryhive scan --role-arn arn:aws:iam::1111:role/SecurityAudit \\
                         --role-arn arn:aws:iam::2222:role/SecurityAudit \\
-                        --external-id shared-secret --client-name "Acme Corp"
+                        --external-id shared-secret --client-name "Acme Corp" --pdf
+
+    EKS hardening (separate opt-in phase, requires in-cluster access):
+
+        sentryhive scan --role-arn ... --eks --clusters prod-eks --kubeconfig ~/.kube/client
     """
     selected = [s.strip() for s in scanners_opt.split(",") if s.strip()]
     unknown = [s for s in selected if s not in ALL_SCANNERS]
@@ -109,15 +125,22 @@ def scan(
         console.print(f"[red]Unknown scanner(s): {', '.join(unknown)}[/red]")
         raise typer.Exit(code=2)
 
+    formats = _resolve_formats(output_formats, pdf)
+    if pdf_engine not in ("weasyprint", "chromium"):
+        console.print(f"[red]Unknown --pdf-engine '{pdf_engine}' (use weasyprint or chromium).[/red]")
+        raise typer.Exit(code=2)
+
     region_list = [r.strip() for r in regions.split(",")] if regions else None
+    cluster_list = [c.strip() for c in clusters.split(",")] if clusters else None
     logo_uri = _logo_data_uri(logo) if logo else ""
     generated_at = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     aws_selected = [s for s in selected if s in ("prowler", "cloudsplaining")]
-    explicit_hardeneks = "hardeneks" in selected
     ash_selected = "ash" in selected
-    needs_aws = bool(aws_selected) or explicit_hardeneks
+    eks_requested = eks or "hardeneks" in selected
+    needs_aws = bool(aws_selected) or eks_requested
 
+    write_kwargs = {"formats": formats, "pdf_engine": pdf_engine, "console": console}
     reports = []
 
     if needs_aws:
@@ -130,12 +153,12 @@ def scan(
             console.print(f"[red]Authentication failed:[/red] {exc}")
             raise typer.Exit(code=1) from None
 
-        _confirm(contexts, selected, client_name, yes)
+        _confirm(contexts, selected, eks_requested, client_name, yes)
 
         for ctx in contexts:
             console.rule(f"[bold]Account {ctx.identity.account_id}[/bold]")
-            scanner_objs = _scanners_for_account(
-                ctx, aws_selected, explicit_hardeneks, no_auto_eks, eks_cluster,
+            scanner_objs = build_scanners(aws_selected) + _eks_scanners(
+                ctx, eks_requested, cluster_list, kubeconfig,
             )
             with tempfile.TemporaryDirectory(prefix="sentryhive-") as workdir:
                 results = _run(scanner_objs, ctx, workdir)
@@ -149,7 +172,7 @@ def scan(
                     logo_data_uri=logo_uri,
                 )
             target = out_dir if len(contexts) == 1 else os.path.join(out_dir, ctx.identity.account_id)
-            paths = write_reports(report, target)
+            paths = write_reports(report, target, **write_kwargs)
             _print_summary(report, paths)
             reports.append(report)
 
@@ -157,7 +180,7 @@ def scan(
             console.rule("[bold]Roll-up across accounts[/bold]")
             rollup = build_rollup(reports, generated_at=generated_at,
                                   client_name=client_name or "", logo_data_uri=logo_uri)
-            paths = write_reports(rollup, out_dir)
+            paths = write_reports(rollup, out_dir, **write_kwargs)
             _print_summary(rollup, paths)
             reports.append(rollup)
 
@@ -171,9 +194,8 @@ def scan(
                 generated_at=generated_at, client_name=client_name or "",
                 logo_data_uri=logo_uri,
             )
-        # Standalone when ASH is the only thing; otherwise keep IaC evidence separate.
         target = out_dir if not needs_aws else os.path.join(out_dir, "local-iac")
-        paths = write_reports(ash_report, target)
+        paths = write_reports(ash_report, target, **write_kwargs)
         _print_summary(ash_report, paths)
         reports.append(ash_report)
 
@@ -188,18 +210,34 @@ def scan(
 # --------------------------------------------------------------------------- #
 # helpers
 # --------------------------------------------------------------------------- #
-def _scanners_for_account(ctx, aws_selected, explicit_hardeneks, no_auto_eks, eks_cluster) -> list[Scanner]:
-    objs = build_scanners(aws_selected)
-    clusters: list[str] = []
-    if explicit_hardeneks or eks_cluster:
-        clusters = [eks_cluster] if eks_cluster else discover_eks_clusters(ctx)
-    elif not no_auto_eks:
-        clusters = discover_eks_clusters(ctx)
-        if clusters:
-            console.print(f"[dim]Auto-detected EKS cluster(s): {', '.join(clusters)} → running hardeneks[/dim]")
-    for cluster in clusters:
-        objs.append(HardeneksScanner(cluster=cluster))
-    return objs
+def _resolve_formats(output_formats: str, pdf: bool) -> list[str]:
+    formats = [f.strip().lower() for f in output_formats.split(",") if f.strip()]
+    if pdf and "pdf" not in formats:
+        formats.append("pdf")
+    invalid = [f for f in formats if f not in VALID_FORMATS]
+    if invalid:
+        console.print(f"[red]Unknown format(s): {', '.join(invalid)}. Valid: {', '.join(sorted(VALID_FORMATS))}[/red]")
+        raise typer.Exit(code=2)
+    return formats
+
+
+def _eks_scanners(ctx, eks_requested: bool, cluster_list, kubeconfig) -> list[Scanner]:
+    """EKS hardening is opt-in. In the default run we only *detect and note* clusters;
+    we never silently run hardeneks (it needs in-cluster RBAC access)."""
+    detected = discover_eks_clusters(ctx)
+    if not eks_requested:
+        if detected:
+            console.print(
+                f"[yellow]Found {len(detected)} EKS cluster(s): {', '.join(detected)}.[/yellow]\n"
+                "[dim]Run EKS hardening with --eks (requires in-cluster access — see docs/eks-access.md).[/dim]"
+            )
+        return []
+    targets = cluster_list or detected
+    if not targets:
+        console.print("[yellow]--eks requested but no EKS clusters found in this account.[/yellow]")
+        return []
+    console.print(f"[dim]EKS hardening targets: {', '.join(targets)}[/dim]")
+    return [HardeneksScanner(cluster=c, kubeconfig=kubeconfig) for c in targets]
 
 
 def _run(scanner_objs: list[Scanner], ctx, workdir: str):
@@ -214,14 +252,15 @@ def _run(scanner_objs: list[Scanner], ctx, workdir: str):
     return results
 
 
-def _confirm(contexts, selected, client_name, yes):
+def _confirm(contexts, selected, eks_requested, client_name, yes):
     lines = []
     if client_name:
         lines.append(f"[bold]Client:[/bold] {client_name}")
     for ctx in contexts:
         lines.append(f"[bold]Account:[/bold] {ctx.identity.account_id}  [dim]{ctx.identity.arn}[/dim]")
     lines.append(f"[bold]Regions:[/bold] {', '.join(contexts[0].regions)}")
-    lines.append(f"[bold]Scanners:[/bold] {', '.join(selected)} (+ auto-detected EKS)")
+    eks_note = " + EKS hardening" if eks_requested else ""
+    lines.append(f"[bold]Scanners:[/bold] {', '.join(selected)}{eks_note}")
     console.print(Panel.fit("\n".join(lines), title="About to scan", border_style="yellow"))
     if not yes and not typer.confirm("Proceed?", default=True):
         console.print("Aborted.")

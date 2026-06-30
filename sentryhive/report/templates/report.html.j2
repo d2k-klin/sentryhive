@@ -45,9 +45,93 @@
   .client { font-size:13px; color:#fbbf24; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
   .bar { height:10px; border-radius:999px; background:#0b1220; overflow:hidden; min-width:120px; }
   .bar > span { display:block; height:100%; background:#22c55e; }
+
+  /* Cover/scope/TOC are for PDF only; hidden in the browser. */
+  @media screen { .print-only { display:none; } }
+
+  /* PDF layout (WeasyPrint / Chromium honor @media print). Paper-friendly: light
+     theme, page breaks between sections, repeating footer with page numbers. */
+  @media print {
+    @page {
+      size: A4;
+      margin: 18mm 16mm 20mm 16mm;
+      @bottom-center {
+        content: "SentryHive — Confidential{% if r.client_name %} — {{ r.client_name }}{% endif %} — page " counter(page) " of " counter(pages);
+        font-size: 9px; color: #6b7280;
+      }
+    }
+    @page :first { @bottom-center { content: none; } }
+    :root { --bg:#fff; --card:#fff; --ink:#111827; --muted:#6b7280; --line:#d1d5db; }
+    body { background:#fff; color:#111827; }
+    header { background:#fff; border-bottom:2px solid #111827; }
+    code { background:#f3f4f6; }
+    .controls { display:none !important; }
+    header .meta { display:none !important; }
+    details { display:none !important; }       /* expand inline instead */
+    section { page-break-inside: avoid; }
+    h2 { page-break-after: avoid; }
+    .cover { page-break-after: always; text-align:center; padding-top:60mm; }
+    .cover img { max-height:80px; margin-bottom:24px; }
+    .cover .title { font-size:30px; font-weight:700; margin:12px 0; }
+    .cover .client { font-size:20px; color:#b45309; margin-bottom:36px; }
+    .cover .confidential { display:inline-block; border:2px solid #dc2626; color:#dc2626;
+      padding:4px 14px; border-radius:6px; font-weight:700; letter-spacing:.1em; }
+    .cover .meta-block { margin-top:40px; font-size:12px; color:#374151; line-height:1.9; }
+    .scope, .toc { page-break-after: always; }
+    .toc ul { list-style:none; padding:0; }
+    .toc a { text-decoration:none; color:#111827; }
+    .toc a::after { content: leader('.') target-counter(attr(href), page); }
+  }
 </style>
 </head>
 <body>
+<!-- ---- PDF-only front matter ---- -->
+<div class="print-only cover">
+  {% if r.logo_data_uri %}<img src="{{ r.logo_data_uri }}" alt="logo">{% endif %}
+  <div class="title">⬡ SentryHive Security Report</div>
+  {% if r.client_name %}<div class="client">{{ r.client_name }}</div>{% endif %}
+  <div class="confidential">CONFIDENTIAL</div>
+  <div class="meta-block">
+    {% if r.is_rollup %}Accounts: {{ r.accounts | join(", ") }}<br>
+    {% else %}Account: {{ r.account_id or "n/a" }}<br>{% endif %}
+    Scan date: {{ r.generated_at }}<br>
+    SentryHive v{{ r.tool_version }}
+  </div>
+</div>
+
+<section class="print-only scope">
+  <h2>Scope &amp; methodology</h2>
+  <table>
+    <tbody>
+      {% if r.is_rollup %}
+      <tr><th>Accounts scanned</th><td>{{ r.accounts | join(", ") }}</td></tr>
+      {% else %}
+      <tr><th>Account scanned</th><td>{{ r.account_id or "n/a" }}</td></tr>
+      <tr><th>Auth identity</th><td><code>{{ r.identity_arn or "n/a" }}</code></td></tr>
+      {% endif %}
+      <tr><th>Regions</th><td>{{ r.regions | join(", ") or "n/a" }}</td></tr>
+      <tr><th>Scan date</th><td>{{ r.generated_at }}</td></tr>
+      <tr><th>SentryHive version</th><td>v{{ r.tool_version }}</td></tr>
+      <tr><th>Scanners &amp; versions</th><td>
+        {% for s in r.scanners %}{{ s.name }} ({{ s.version or "n/a" }}) — {{ s.status }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+      </td></tr>
+      <tr><th>Total findings</th><td>{{ r.total }}</td></tr>
+    </tbody>
+  </table>
+  <p style="color:#6b7280;font-size:11px">All scanning and report generation runs locally; no scan data leaves the operator's machine.</p>
+</section>
+
+<div class="print-only toc">
+  <h2>Contents</h2>
+  <ul>
+    <li><a href="#sec-summary">Executive summary</a></li>
+    {% if r.compliance %}<li><a href="#sec-compliance">Compliance posture</a></li>{% endif %}
+    {% if r.iam_highlights %}<li><a href="#sec-iam">IAM privilege-escalation highlights</a></li>{% endif %}
+    {% if r.eks_findings %}<li><a href="#sec-eks">EKS Hardening</a></li>{% endif %}
+    <li><a href="#sec-findings">All findings</a></li>
+  </ul>
+</div>
+
 <header>
   <div class="brand">
     {% if r.logo_data_uri %}<img src="{{ r.logo_data_uri }}" alt="client logo">{% endif %}
@@ -69,7 +153,7 @@
   </div>
 </header>
 <main>
-  <div class="cards">
+  <div class="cards" id="sec-summary">
     {% for sev in severity_order %}
     <div class="card">
       <div class="n" style="color:{{ severity_colors[sev] }}">{{ r.severity_counts.get(sev, 0) }}</div>
@@ -80,7 +164,7 @@
   </div>
 
   {% if r.compliance %}
-  <section>
+  <section id="sec-compliance">
     <h2>Compliance posture</h2>
     <table>
       <thead><tr><th>Framework</th><th>Pass</th><th>Fail</th><th style="width:40%">% pass</th></tr></thead>
@@ -104,7 +188,7 @@
   {% endif %}
 
   {% if r.iam_highlights %}
-  <section>
+  <section id="sec-iam">
     <h2>IAM privilege-escalation highlights</h2>
     <p style="color:var(--muted);margin-top:-6px">How an attacker could escalate or take over within this account.</p>
     <table>
@@ -115,6 +199,27 @@
           <td><span class="sev" style="background:{{ severity_colors[f.severity.label] }}">{{ f.severity.label }}</span></td>
           <td><code>{{ f.resource }}</code></td>
           <td>{{ f.title or f.check }}{% if f.description %}<br><span style="color:var(--muted)">{{ f.description }}</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  {% if r.eks_findings %}
+  <section id="sec-eks">
+    <h2>EKS Hardening</h2>
+    <p style="color:var(--muted);margin-top:-6px">In-cluster best-practice checks (hardeneks). Findings are grouped by cluster.</p>
+    <table>
+      <thead><tr><th>Severity</th><th>Cluster / resource</th><th>Region</th><th>Finding</th></tr></thead>
+      <tbody>
+      {% for f in r.eks_findings %}
+        <tr>
+          <td><span class="sev" style="background:{{ severity_colors[f.severity.label] }}">{{ f.severity.label }}</span></td>
+          <td><code>{{ f.resource or "cluster" }}</code></td>
+          <td>{{ f.region or "—" }}</td>
+          <td><strong>{{ f.title or f.check }}</strong>
+            {% if f.remediation %}<br><span class="remediation">→ {{ f.remediation }}</span>{% endif %}</td>
         </tr>
       {% endfor %}
       </tbody>
@@ -155,7 +260,7 @@
   </section>
   {% endif %}
 
-  <section>
+  <section id="sec-findings">
     <h2>All findings</h2>
     <div class="controls">
       <input id="q" type="search" placeholder="Filter by text (resource, check, description)…">
@@ -195,6 +300,11 @@
               {% if f.remediation %}<p class="remediation">→ {{ f.remediation }}</p>{% endif %}
               <p><span class="pill">id: {{ f.id }}</span> <span class="pill">check: {{ f.check }}</span> <span class="pill">source: {{ f.tool }}</span></p>
             </details>
+            <div class="print-only">
+              {% if f.description %}<p style="margin:4px 0">{{ f.description }}</p>{% endif %}
+              {% if f.remediation %}<p class="remediation" style="margin:4px 0">→ {{ f.remediation }}</p>{% endif %}
+              <p style="font-size:11px;color:#6b7280">check: {{ f.check }} · source: {{ f.tool }}</p>
+            </div>
           </td>
         </tr>
       {% else %}

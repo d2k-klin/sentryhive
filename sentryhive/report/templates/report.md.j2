@@ -74,6 +74,18 @@ _No failing findings. 🎉_
 | {{ s.name }} | {{ s.status }} | {{ s.findings }} | {{ s.version }} | {{ s.message }} |
 {% endfor %}
 
+{% if r.eks_findings %}
+## EKS Hardening
+
+In-cluster best-practice checks (hardeneks), grouped by cluster.
+
+| Severity | Cluster / resource | Region | Finding |
+|----------|--------------------|--------|---------|
+{% for f in r.eks_findings %}
+| {{ f.severity.label }} | `{{ f.resource or "cluster" }}` | {{ f.region or "—" }} | {{ f.title or f.check }} |
+{% endfor %}
+
+{% endif %}
 ## All findings
 
 {% for f in r.findings %}
