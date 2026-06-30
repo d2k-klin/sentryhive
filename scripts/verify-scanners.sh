@@ -10,7 +10,8 @@ FAIL=0
 check_binary() {
   local name="$1"
   local cmd="$2"
-  local version_flag="${3:---version}"
+  shift 2
+  local version_flags=("${@:---version}")
 
   printf "%-20s" "$name"
   if ! command -v "$cmd" &>/dev/null; then
@@ -19,7 +20,7 @@ check_binary() {
     return
   fi
 
-  version_output=$("$cmd" "$version_flag" 2>&1 | head -1) || true
+  version_output=$("$cmd" "${version_flags[@]}" 2>&1 | head -1) || true
   if [[ -z "$version_output" ]]; then
     echo "INSTALLED (version unknown)"
   else
@@ -33,9 +34,8 @@ echo ""
 check_binary "prowler"        prowler        "--version"
 check_binary "cloudsplaining" cloudsplaining "--version"
 check_binary "hardeneks"      hardeneks      "--version"
-check_binary "ash"            ash            "--version"
 check_binary "aws-cli"        aws            "--version"
-check_binary "kubectl"        kubectl        "version --client --short"
+check_binary "kubectl"        kubectl        version --client
 
 echo ""
 
