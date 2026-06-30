@@ -51,6 +51,8 @@ class HardeneksScanner(Scanner):
             upd = self._exec(
                 ["aws", "eks", "update-kubeconfig", "--name", self.cluster, *(["--region", region] if region else [])],
                 env=env,
+                progress=True,
+                progress_label=f"{self.name} kubeconfig",
             )
             if upd.returncode != 0:
                 return ScanResult(
@@ -74,6 +76,8 @@ class HardeneksScanner(Scanner):
         self._exec(
             ["hardeneks", "--export-json", export, "--region", region or "us-east-1"],
             env=env,
+            progress=True,
+            progress_label=self.name,
         )
         raw = _load_json(export)
         if raw is None:

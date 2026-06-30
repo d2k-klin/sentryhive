@@ -31,11 +31,14 @@ class ProwlerScanner(Scanner):
             "--output-filename",
             "prowler",
             "--ignore-exit-code-3",  # don't fail the process just because findings exist
+            "--no-color",
+            "--log-level",
+            "INFO",
         ]
         if ctx and ctx.regions:
             cmd += ["--region", *ctx.regions]
 
-        proc = self._exec(cmd, env=env)
+        proc = self._exec(cmd, env=env, progress=True, progress_label=self.name)
         raw = _load_prowler_output(out_dir)
         if raw is None:
             return ScanResult(

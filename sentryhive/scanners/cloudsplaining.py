@@ -28,6 +28,8 @@ class CloudsplainingScanner(Scanner):
         dl = self._exec(
             ["cloudsplaining", "download", "--output", auth_file],
             env=env,
+            progress=True,
+            progress_label=f"{self.name} download",
         )
         if not os.path.exists(auth_file):
             return ScanResult(
@@ -40,6 +42,8 @@ class CloudsplainingScanner(Scanner):
         self._exec(
             ["cloudsplaining", "scan", "--input-file", auth_file, "--output", out_dir],
             env=env,
+            progress=True,
+            progress_label=f"{self.name} scan",
         )
         raw = _load_results_json(out_dir)
         if raw is None:

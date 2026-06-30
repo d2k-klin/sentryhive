@@ -8,6 +8,7 @@ Symptom → likely cause → fix.
 | `Failed to assume role ... AccessDenied` | Trust policy doesn't allow your principal, or wrong external ID | Verify the role's trust policy and pass the correct `--external-id`. See [IAM permissions](iam-permissions.md). |
 | Assume-role works but scan shows many `AccessDenied` findings/errors | Role missing read permissions | Attach `SecurityAudit` + `ViewOnlyAccess` + the [extra policy](../iam/least-privilege-policy.json). |
 | Scanner reported `skipped — '<tool>' not found on PATH` | Running from source without that tool | Install the tool, or use the Docker image which bundles all of them. |
+| Scanner appears quiet for a long time | The underlying scanner is still running a large account scan | Wait for the elapsed-time heartbeat; re-run with `--scanner-output` to stream raw scanner logs. |
 | `--eks` run: cluster `skipped — no in-cluster access` | Missing Kubernetes RBAC grant | Apply the [EKS access](eks-access.md) onboarding (access entry + RBAC). |
 | `--eks` run: `API server unreachable (private endpoint?)` | Cluster has a private-only API endpoint | Run from within the client VPC (VPN/bastion/in-VPC runner). |
 | `--eks` requested but `no EKS clusters found` | No clusters, or wrong region | Add `--regions`; confirm clusters exist with `aws eks list-clusters`. |
@@ -22,6 +23,7 @@ Symptom → likely cause → fix.
 
 - `sentryhive scan --help` — authoritative flag reference.
 - Re-run a single scanner to isolate the problem: `--scanners prowler`.
+- Add `--scanner-output` when you need raw scanner logs in the terminal.
 - Inspect `findings.json` for the raw normalized output.
 
 Still stuck? Open an issue with the bug-report template (include SentryHive version,

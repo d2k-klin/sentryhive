@@ -32,6 +32,8 @@ class AshScanner(Scanner):
 
         self._exec(
             ["ash", "--source-dir", self.source_dir, "--output-dir", out_dir],
+            progress=True,
+            progress_label=self.name,
         )
         raw = _load_ash_results(out_dir)
         if raw is None:

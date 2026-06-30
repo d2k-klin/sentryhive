@@ -11,8 +11,12 @@ aggregator and report layer never change.
 from __future__ import annotations
 
 import os
+import queue
 import shutil
 import subprocess
+import sys
+import threading
+import time
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -67,6 +71,10 @@ class Scanner:
 
     #: Flag passed to the binary to print its version (override if non-standard).
     version_flag: str = "--version"
+    #: If enabled, scanner stdout/stderr lines are also printed while they run.
+    show_scanner_output: bool = False
+    #: Elapsed-time heartbeat interval for long-running scanner commands.
+    heartbeat_interval: float = 30.0
 
     def is_available(self) -> bool:
         """Whether the underlying tool can be invoked."""
@@ -107,15 +115,192 @@ class Scanner:
         raise NotImplementedError
 
     # --- helpers ---------------------------------------------------------
-    @staticmethod
-    def _exec(cmd: list[str], env: dict | None = None, timeout: int = 1800) -> subprocess.CompletedProcess:
-        """Run a subprocess, capturing output. Does not raise on non-zero exit;
-        many scanners use exit codes to signal 'findings present'."""
-        return subprocess.run(
+    def _exec(
+        self,
+        cmd: list[str],
+        env: dict | None = None,
+        timeout: int = 1800,
+        progress: bool = False,
+        progress_label: str | None = None,
+        stream_output: bool | None = None,
+        heartbeat_interval: float | None = None,
+    ) -> subprocess.CompletedProcess:
+        """Run a subprocess, capturing output and optionally showing progress.
+
+        The return shape intentionally matches subprocess.run(). Many scanner
+        wrappers need stderr/stdout after completion, while users need assurance
+        that long scans are still active.
+        """
+        if not progress:
+            return subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                env=env,
+                timeout=timeout,
+                check=False,
+            )
+        return self._exec_with_progress(
             cmd,
-            capture_output=True,
-            text=True,
             env=env,
             timeout=timeout,
-            check=False,
+            progress_label=progress_label or self.name,
+            stream_output=self.show_scanner_output if stream_output is None else stream_output,
+            heartbeat_interval=heartbeat_interval or self.heartbeat_interval,
         )
+
+    def _exec_with_progress(
+        self,
+        cmd: list[str],
+        env: dict | None,
+        timeout: int,
+        progress_label: str,
+        stream_output: bool,
+        heartbeat_interval: float,
+    ) -> subprocess.CompletedProcess:
+        """Run a subprocess with captured output plus elapsed-time heartbeats."""
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+            bufsize=1,
+        )
+
+        output_queue: queue.Queue[tuple[str, str]] = queue.Queue()
+        stdout_chunks: list[str] = []
+        stderr_chunks: list[str] = []
+        readers: list[threading.Thread] = []
+
+        def reader(name: str, stream):
+            try:
+                for line in iter(stream.readline, ""):
+                    output_queue.put((name, line))
+            finally:
+                stream.close()
+
+        for name, stream in (("stdout", proc.stdout), ("stderr", proc.stderr)):
+            if stream is None:
+                continue
+            thread = threading.Thread(target=reader, args=(name, stream), daemon=True)
+            thread.start()
+            readers.append(thread)
+
+        started = time.monotonic()
+        next_heartbeat = started + heartbeat_interval
+        lines_seen = 0
+        poll_interval = min(0.2, max(0.02, heartbeat_interval / 5))
+
+        while True:
+            now = time.monotonic()
+            if timeout is not None and now - started > timeout:
+                proc.kill()
+                try:
+                    proc.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    pass
+                for thread in readers:
+                    thread.join(timeout=0.2)
+                self._drain_output_queue(output_queue, stdout_chunks, stderr_chunks, progress_label, stream_output)
+                raise subprocess.TimeoutExpired(
+                    cmd=cmd,
+                    timeout=timeout,
+                    output="".join(stdout_chunks),
+                    stderr="".join(stderr_chunks),
+                )
+
+            try:
+                stream_name, line = output_queue.get(timeout=poll_interval)
+            except queue.Empty:
+                stream_name = ""
+                line = ""
+
+            if line:
+                lines_seen += 1
+                self._record_scanner_line(
+                    stream_name,
+                    line,
+                    stdout_chunks,
+                    stderr_chunks,
+                    progress_label,
+                    stream_output,
+                )
+
+            now = time.monotonic()
+            if now >= next_heartbeat and proc.poll() is None:
+                self._print_progress_heartbeat(progress_label, now - started, lines_seen)
+                next_heartbeat = now + heartbeat_interval
+
+            if proc.poll() is not None:
+                for thread in readers:
+                    thread.join(timeout=0.2)
+                self._drain_output_queue(output_queue, stdout_chunks, stderr_chunks, progress_label, stream_output)
+                break
+
+        return subprocess.CompletedProcess(
+            cmd,
+            proc.returncode,
+            stdout="".join(stdout_chunks),
+            stderr="".join(stderr_chunks),
+        )
+
+    def _drain_output_queue(
+        self,
+        output_queue: queue.Queue[tuple[str, str]],
+        stdout_chunks: list[str],
+        stderr_chunks: list[str],
+        progress_label: str,
+        stream_output: bool,
+    ) -> None:
+        while True:
+            try:
+                stream_name, line = output_queue.get_nowait()
+            except queue.Empty:
+                return
+            self._record_scanner_line(
+                stream_name,
+                line,
+                stdout_chunks,
+                stderr_chunks,
+                progress_label,
+                stream_output,
+            )
+
+    def _record_scanner_line(
+        self,
+        stream_name: str,
+        line: str,
+        stdout_chunks: list[str],
+        stderr_chunks: list[str],
+        progress_label: str,
+        stream_output: bool,
+    ) -> None:
+        if stream_name == "stdout":
+            stdout_chunks.append(line)
+        else:
+            stderr_chunks.append(line)
+        if stream_output:
+            cleaned = line.rstrip()
+            if cleaned:
+                print(f"  [{progress_label}] {cleaned}", file=sys.stdout, flush=True)
+
+    @staticmethod
+    def _print_progress_heartbeat(progress_label: str, elapsed_seconds: float, lines_seen: int) -> None:
+        activity = "scanner output received" if lines_seen else "waiting for scanner output"
+        print(
+            f"  ... {progress_label} still running ({_format_elapsed(elapsed_seconds)}, {activity})",
+            file=sys.stdout,
+            flush=True,
+        )
+
+
+def _format_elapsed(seconds: float) -> str:
+    seconds = int(seconds)
+    minutes, secs = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours}h {minutes}m {secs}s"
+    if minutes:
+        return f"{minutes}m {secs}s"
+    return f"{secs}s"

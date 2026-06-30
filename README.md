@@ -125,6 +125,7 @@ sentryhive scan [OPTIONS]
   --out TEXT              Output directory (default: ./reports)
   --yes, -y               Skip confirmation prompt
   --fail-on TEXT          Exit non-zero if any finding >= severity (CI gate)
+  --scanner-output        Stream raw scanner output; heartbeats are shown by default
 ```
 
 > EKS hardening is a **separate, opt-in phase** — unlike the IAM-only scanners it

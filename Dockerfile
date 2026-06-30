@@ -1,5 +1,5 @@
 # SentryHive — single image bundling all scanners so users install nothing but Docker.
-FROM python:3.14-slim
+FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="SentryHive" \
       org.opencontainers.image.description="AWS security scanning toolkit — one image, one report." \
@@ -8,7 +8,7 @@ LABEL org.opencontainers.image.title="SentryHive" \
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PATH="/opt/venv/bin:$PATH"
+    PATH="/opt/sentryhive-venv/bin:/opt/scanner-venv/bin:$PATH"
 
 # System deps:
 #  - git: ASH/IaC checks
@@ -33,19 +33,23 @@ RUN KARCH="$(dpkg --print-architecture)" \
        -o /usr/local/bin/kubectl \
     && chmod +x /usr/local/bin/kubectl
 
-# Isolated venv for all the Python scanners + SentryHive itself.
-RUN python -m venv /opt/venv
-RUN pip install --upgrade pip \
-    && pip install \
+# Isolate scanner CLIs from SentryHive's app dependencies. Several scanners pin
+# older boto3/typer versions that conflict with the orchestrator's dependencies.
+RUN python -m venv /opt/scanner-venv \
+    && /opt/scanner-venv/bin/pip install --upgrade pip "setuptools<81" \
+    && /opt/scanner-venv/bin/pip install \
         "prowler" \
         "cloudsplaining" \
         "hardeneks" \
         "automated-security-helper"
 
+RUN python -m venv /opt/sentryhive-venv \
+    && /opt/sentryhive-venv/bin/pip install --upgrade pip
+
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY sentryhive ./sentryhive
-RUN pip install ".[pdf]"
+RUN /opt/sentryhive-venv/bin/pip install ".[pdf]"
 
 # Reports land here; mount a host volume over it (see docker-compose.yml).
 VOLUME ["/app/reports"]

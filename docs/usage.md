@@ -104,6 +104,7 @@ See [CI/CD](ci-cd.md) for the reusable GitHub Actions workflow.
 | `--out` | `./reports` | Output directory. |
 | `--yes`, `-y` | off | Skip the confirmation prompt. |
 | `--fail-on` | — | Exit non-zero if any finding ≥ severity (`critical`/`high`/`medium`/`low`). |
+| `--scanner-output` | off | Stream raw scanner stdout/stderr while commands run. Elapsed-time heartbeats are shown by default. |
 
 ### Other commands
 

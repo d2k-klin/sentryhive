@@ -113,6 +113,11 @@ def scan(
         help="Exit non-zero if any finding at/above this severity exists "
         "(critical|high|medium|low). Useful as a CI gate.",
     ),
+    scanner_output: bool = typer.Option(
+        False,
+        "--scanner-output",
+        help="Stream raw scanner stdout/stderr while commands run. Elapsed-time heartbeats are shown by default.",
+    ),
 ):
     """Run the selected scanners and produce a consolidated report.
 
@@ -173,7 +178,7 @@ def scan(
                 kubeconfig,
             )
             with tempfile.TemporaryDirectory(prefix="sentryhive-") as workdir:
-                results = _run(scanner_objs, ctx, workdir)
+                results = _run(scanner_objs, ctx, workdir, scanner_output=scanner_output)
                 report = build_report(
                     results,
                     account_id=ctx.identity.account_id,
@@ -201,7 +206,7 @@ def scan(
         console.rule("[bold]Local IaC / code (ASH)[/bold]")
         ash = AshScanner(source_dir=source_dir)
         with tempfile.TemporaryDirectory(prefix="sentryhive-ash-") as workdir:
-            results = _run([ash], None, workdir)
+            results = _run([ash], None, workdir, scanner_output=scanner_output)
             ash_report = build_report(
                 results,
                 account_id="",
@@ -257,9 +262,10 @@ def _eks_scanners(ctx, eks_requested: bool, cluster_list, kubeconfig) -> list[Sc
     return [HardeneksScanner(cluster=c, kubeconfig=kubeconfig) for c in targets]
 
 
-def _run(scanner_objs: list[Scanner], ctx, workdir: str):
+def _run(scanner_objs: list[Scanner], ctx, workdir: str, scanner_output: bool = False):
     results = []
     for scanner in scanner_objs:
+        scanner.show_scanner_output = scanner_output
         console.print(f"▶ running [bold]{scanner.name}[/bold] …")
         result = scanner.run(ctx, workdir)
         style = {"ok": "green", "skipped": "yellow", "error": "red"}[result.status.value]
