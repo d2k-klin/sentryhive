@@ -1,0 +1,58 @@
+name: Bug report
+description: Report something that isn't working
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Never paste credentials, real account IDs, or real ARNs** —
+        sanitize commands and logs (use `123456789012` for account IDs).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command (sanitized)
+      description: The `sentryhive` command you ran, with secrets/ARNs redacted.
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output / error (sanitized)
+      render: text
+  - type: input
+    id: sentryhive-version
+    attributes:
+      label: SentryHive version
+      description: Output of `sentryhive --version`.
+    validations:
+      required: true
+  - type: textarea
+    id: scanner-versions
+    attributes:
+      label: Scanner versions
+      description: From the report's scope/scanners section, or `sentryhive scanners`.
+  - type: input
+    id: os
+    attributes:
+      label: OS / environment
+      description: e.g. macOS 14, Ubuntu 22.04, Docker image tag, WSL2.
+    validations:
+      required: true
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: Install method
+      options:
+        - Docker
+        - From source
+        - PyPI
+    validations:
+      required: true
