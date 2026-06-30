@@ -9,6 +9,8 @@ raising.
 
 from __future__ import annotations
 
+import html
+import re
 from typing import Any
 
 from sentryhive.models import Finding, Severity
@@ -103,6 +105,9 @@ _CLOUDSPLAINING_RISKS = {
 def parse_cloudsplaining(data: dict, account_id: str = "") -> list[Finding]:
     findings: list[Finding] = []
     items = data.get("results", data) if isinstance(data, dict) else {}
+    if _looks_like_cloudsplaining_native(items):
+        return _parse_cloudsplaining_native(items, account_id=account_id)
+
     for policy_name, detail in items.items():
         if not isinstance(detail, dict):
             continue
@@ -128,6 +133,77 @@ def parse_cloudsplaining(data: dict, account_id: str = "") -> list[Finding]:
                 )
             )
     return findings
+
+
+def _looks_like_cloudsplaining_native(items: dict) -> bool:
+    sections = {"aws_managed_policies", "customer_managed_policies", "inline_policies"}
+    return isinstance(items, dict) and bool(sections & set(items))
+
+
+def _parse_cloudsplaining_native(items: dict, account_id: str = "") -> list[Finding]:
+    findings: list[Finding] = []
+    sections = ("customer_managed_policies", "inline_policies", "aws_managed_policies")
+    for section in sections:
+        policies = items.get(section, {})
+        if not isinstance(policies, dict):
+            continue
+        for policy_id, detail in policies.items():
+            if not isinstance(detail, dict):
+                continue
+            policy_name = str(_get(detail, "PolicyName", "policy_name", default=policy_id))
+            resource = str(_get(detail, "Arn", "arn", default=policy_name))
+            for risk_key, (default_severity, title) in _CLOUDSPLAINING_RISKS.items():
+                risk = detail.get(risk_key)
+                risk_findings = _cloudsplaining_risk_findings(risk)
+                if not risk_findings:
+                    continue
+                severity = Severity.parse(risk.get("severity") if isinstance(risk, dict) else None)
+                if severity is Severity.INFO:
+                    severity = default_severity
+                description = _clean_html(risk.get("description", "")) if isinstance(risk, dict) else ""
+                actions = ", ".join(map(_stringify_action, risk_findings[:15]))
+                findings.append(
+                    Finding(
+                        tool="cloudsplaining",
+                        check=risk_key,
+                        title=f"{title}: {policy_name}",
+                        description=description or f"Policy '{policy_name}' grants: {actions}",
+                        severity=severity,
+                        resource=resource,
+                        service="iam",
+                        status="fail",
+                        remediation="Apply least privilege: remove the flagged actions or "
+                        "scope them with conditions/resources.",
+                        compliance_refs=["CIS-1.16", "IAM-least-privilege"],
+                        account_id=account_id,
+                    )
+                )
+    return findings
+
+
+def _cloudsplaining_risk_findings(value: Any) -> list:
+    if isinstance(value, dict):
+        findings = value.get("findings", [])
+        return findings if isinstance(findings, list) else [findings]
+    if isinstance(value, list):
+        return value
+    return [value] if value else []
+
+
+def _stringify_action(value: Any) -> str:
+    if isinstance(value, dict):
+        if value.get("actions"):
+            actions = value["actions"]
+            return ", ".join(map(str, actions)) if isinstance(actions, list) else str(actions)
+        if value.get("type"):
+            return str(value["type"])
+    return str(value)
+
+
+def _clean_html(value: str) -> str:
+    if not value:
+        return ""
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html.unescape(str(value)))).strip()
 
 
 # --------------------------------------------------------------------------- #

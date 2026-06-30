@@ -225,6 +225,7 @@ def scan(
         console.print("[red]Nothing to scan.[/red]")
         raise typer.Exit(code=2)
 
+    _fail_on_scanner_errors(reports)
     _maybe_fail_on(reports, fail_on)
     raise typer.Exit(code=0)
 
@@ -312,6 +313,20 @@ def _maybe_fail_on(reports, fail_on):
             f"[red]✗ {len(breaching)} finding(s) at or above {threshold.label} — failing per --fail-on.[/red]"
         )
         raise typer.Exit(code=3)
+
+
+def _fail_on_scanner_errors(reports):
+    errors = [s for report in reports for s in report.scanner_errors]
+    if not errors:
+        return
+    console.print(
+        "[red]Scan incomplete: one or more scanners failed. "
+        "Reports were written, but findings are incomplete.[/red]"
+    )
+    for error in errors:
+        note = f" — {error.message}" if error.message else ""
+        console.print(f"  [red]{error.name}[/red]{note}")
+    raise typer.Exit(code=1)
 
 
 def _print_summary(report, paths: dict[str, str]):

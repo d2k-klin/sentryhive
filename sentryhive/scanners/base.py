@@ -23,6 +23,8 @@ from enum import Enum
 from sentryhive.auth import AwsContext
 from sentryhive.models import Finding
 
+DEFAULT_SCANNER_TIMEOUT_SECONDS = 3600
+
 
 def session_env(ctx: AwsContext | None) -> dict:
     """Export the resolved (possibly assumed-role) credentials into a child-process
@@ -119,7 +121,7 @@ class Scanner:
         self,
         cmd: list[str],
         env: dict | None = None,
-        timeout: int = 1800,
+        timeout: int = DEFAULT_SCANNER_TIMEOUT_SECONDS,
         progress: bool = False,
         progress_label: str | None = None,
         stream_output: bool | None = None,
@@ -190,6 +192,7 @@ class Scanner:
         started = time.monotonic()
         next_heartbeat = started + heartbeat_interval
         lines_seen = 0
+        last_output_at: float | None = None
         poll_interval = min(0.2, max(0.02, heartbeat_interval / 5))
 
         while True:
@@ -218,6 +221,7 @@ class Scanner:
 
             if line:
                 lines_seen += 1
+                last_output_at = time.monotonic()
                 self._record_scanner_line(
                     stream_name,
                     line,
@@ -229,7 +233,8 @@ class Scanner:
 
             now = time.monotonic()
             if now >= next_heartbeat and proc.poll() is None:
-                self._print_progress_heartbeat(progress_label, now - started, lines_seen)
+                last_output_age = None if last_output_at is None else now - last_output_at
+                self._print_progress_heartbeat(progress_label, now - started, lines_seen, last_output_age)
                 next_heartbeat = now + heartbeat_interval
 
             if proc.poll() is not None:
@@ -286,8 +291,17 @@ class Scanner:
                 print(f"  [{progress_label}] {cleaned}", file=sys.stdout, flush=True)
 
     @staticmethod
-    def _print_progress_heartbeat(progress_label: str, elapsed_seconds: float, lines_seen: int) -> None:
-        activity = "scanner output received" if lines_seen else "waiting for scanner output"
+    def _print_progress_heartbeat(
+        progress_label: str,
+        elapsed_seconds: float,
+        lines_seen: int,
+        last_output_age: float | None,
+    ) -> None:
+        activity = (
+            f"last scanner output {_format_elapsed(last_output_age)} ago"
+            if lines_seen and last_output_age is not None
+            else "waiting for scanner output"
+        )
         print(
             f"  ... {progress_label} still running ({_format_elapsed(elapsed_seconds)}, {activity})",
             file=sys.stdout,

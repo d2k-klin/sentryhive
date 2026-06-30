@@ -66,6 +66,14 @@ class Report:
         return len(self.findings)
 
     @property
+    def scanner_errors(self) -> list[ScannerSummary]:
+        return [s for s in self.scanners if s.status == "error"]
+
+    @property
+    def has_scanner_errors(self) -> bool:
+        return bool(self.scanner_errors)
+
+    @property
     def eks_findings(self) -> list[Finding]:
         """hardeneks findings, for the report's dedicated EKS Hardening section."""
         return [f for f in self.findings if f.tool == "hardeneks"]
@@ -86,6 +94,7 @@ class Report:
             "sentryhive_version": self.tool_version,
             "summary": {
                 "total": self.total,
+                "scan_complete": not self.has_scanner_errors,
                 "by_severity": self.severity_counts,
                 "by_status": self.status_counts,
                 "services": self.services,

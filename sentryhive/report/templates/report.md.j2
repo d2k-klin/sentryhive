@@ -17,10 +17,17 @@
 | **Generated** | {{ r.generated_at }} |
 | **SentryHive** | v{{ r.tool_version }} |
 | **Scanners** | {% for s in r.scanners %}{{ s.name }}{% if s.version %} ({{ s.version }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %} |
+{% if r.has_scanner_errors %}
+| **Scan status** | Incomplete — scanner errors detected |
+{% endif %}
 | **Total findings** | {{ r.total }} |
 
 ## Executive summary
 
+{% if r.has_scanner_errors %}
+> **Scan incomplete:** one or more scanners failed. Treat zero findings as incomplete evidence, not a clean account.
+
+{% endif %}
 ### By severity
 
 | Severity | Count |
@@ -63,7 +70,11 @@ _No IAM privilege-escalation paths surfaced._
 | {{ loop.index }} | {{ f.severity.label }} | {{ f.tool }} | `{{ f.resource }}` | {{ f.title or f.check }} | {{ f.compliance_refs | join(", ") }} |
 {% endfor %}
 {% else %}
+{% if r.has_scanner_errors %}
+_No failing findings are shown because the scan was incomplete._
+{% else %}
 _No failing findings. 🎉_
+{% endif %}
 {% endif %}
 
 ## Scanners
@@ -110,7 +121,11 @@ In-cluster best-practice checks (hardeneks), grouped by cluster.
 {% endif %}
 
 {% else %}
+{% if r.has_scanner_errors %}
+_No findings were normalized because the scan was incomplete._
+{% else %}
 _No findings._
+{% endif %}
 {% endfor %}
 
 ---

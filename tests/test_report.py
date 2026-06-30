@@ -64,3 +64,21 @@ def test_markdown_has_summary(tmp_path):
     md = (tmp_path / "report.md").read_text()
     assert "SentryHive Security Report" in md
     assert "Top 1 risks" in md
+
+
+def test_markdown_marks_incomplete_scan(tmp_path):
+    report = build_report(
+        [ScanResult("prowler", ScanStatus.ERROR, message="scanner timed out", version="Prowler 5.31.1")],
+        account_id="123456789012",
+        identity_arn="arn:aws:iam::123456789012:user/auditor",
+        regions=["us-east-1"],
+        generated_at="2026-06-30 00:00:00 UTC",
+    )
+
+    write_reports(report, str(tmp_path), formats=["md", "json"])
+
+    md = (tmp_path / "report.md").read_text()
+    data = json.loads((tmp_path / "findings.json").read_text())
+    assert "Scan incomplete" in md
+    assert "not a clean account" in md
+    assert data["summary"]["scan_complete"] is False

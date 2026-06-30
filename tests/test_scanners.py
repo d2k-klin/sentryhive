@@ -1,9 +1,11 @@
+import subprocess
 import sys
 
 import pytest
 
 from sentryhive.scanners import ALL_SCANNERS, build_scanners
-from sentryhive.scanners.base import Scanner, ScanStatus
+from sentryhive.scanners.base import DEFAULT_SCANNER_TIMEOUT_SECONDS, Scanner, ScanStatus
+from sentryhive.scanners.cloudsplaining import CloudsplainingScanner
 
 
 class DummyScanner(Scanner):
@@ -45,6 +47,10 @@ def test_hardeneks_skips_without_cluster():
     assert "cluster" in result.message.lower()
 
 
+def test_default_scanner_timeout_is_one_hour():
+    assert DEFAULT_SCANNER_TIMEOUT_SECONDS == 60 * 60
+
+
 def test_exec_with_progress_emits_heartbeat(capsys):
     scanner = DummyScanner()
     proc = scanner._exec(
@@ -72,3 +78,45 @@ def test_exec_with_progress_can_stream_scanner_output(capsys):
     assert proc.returncode == 0
     assert proc.stdout.strip() == "scanner says hi"
     assert "[dummy] scanner says hi" in captured
+
+
+def test_progress_heartbeat_reports_last_output_age(capsys):
+    DummyScanner._print_progress_heartbeat("dummy", elapsed_seconds=90, lines_seen=3, last_output_age=35)
+
+    captured = capsys.readouterr().out
+    assert "dummy still running" in captured
+    assert "1m 30s" in captured
+    assert "last scanner output 35s ago" in captured
+
+
+def test_cloudsplaining_uses_download_directory_and_results_file(tmp_path):
+    scanner = CloudsplainingScanner()
+    commands = []
+
+    def fake_exec(cmd, **kwargs):
+        commands.append(cmd)
+        out_dir = tmp_path / "cloudsplaining"
+        if cmd[:2] == ["cloudsplaining", "download"]:
+            (out_dir / "default.json").write_text("{}")
+        elif cmd[:2] == ["cloudsplaining", "scan"]:
+            (out_dir / "iam-results-default.json").write_text(
+                '{"results":{"AdminPolicy":{"PrivilegeEscalation":["iam:CreateAccessKey"]}}}'
+            )
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    scanner._exec = fake_exec
+
+    result = scanner._scan(None, str(tmp_path))
+
+    assert result.status is ScanStatus.OK
+    assert len(result.findings) == 1
+    assert commands[0] == ["cloudsplaining", "download", "--output", str(tmp_path / "cloudsplaining")]
+    assert commands[1] == [
+        "cloudsplaining",
+        "scan",
+        "--input-file",
+        str(tmp_path / "cloudsplaining" / "default.json"),
+        "--output",
+        str(tmp_path / "cloudsplaining"),
+        "--skip-open-report",
+    ]

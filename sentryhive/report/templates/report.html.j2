@@ -24,6 +24,7 @@
          color:#fff; text-transform:uppercase; letter-spacing:.03em; }
   section { background:var(--card); border:1px solid var(--line); border-radius:12px;
             padding:18px 20px; margin-bottom:20px; }
+  section.alert { border-color:#f59e0b; background:#2b2111; }
   section h2 { margin:0 0 14px; font-size:16px; }
   table { width:100%; border-collapse:collapse; }
   th,td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
@@ -64,6 +65,7 @@
     :root { --bg:#fff; --card:#fff; --ink:#111827; --muted:#6b7280; --line:#d1d5db; }
     body { background:#fff; color:#111827; }
     header { background:#fff; border-bottom:2px solid #111827; }
+    section.alert { background:#fffbeb; border-color:#f59e0b; }
     code { background:#f3f4f6; }
     .controls { display:none !important; }
     header .meta { display:none !important; }
@@ -115,6 +117,9 @@
       <tr><th>Scanners &amp; versions</th><td>
         {% for s in r.scanners %}{{ s.name }} ({{ s.version or "n/a" }}) — {{ s.status }}{% if not loop.last %}<br>{% endif %}{% endfor %}
       </td></tr>
+      {% if r.has_scanner_errors %}
+      <tr><th>Scan status</th><td>Incomplete — scanner errors detected</td></tr>
+      {% endif %}
       <tr><th>Total findings</th><td>{{ r.total }}</td></tr>
     </tbody>
   </table>
@@ -162,6 +167,18 @@
     {% endfor %}
     <div class="card"><div class="n">{{ r.total }}</div><div class="l">Total</div></div>
   </div>
+
+  {% if r.has_scanner_errors %}
+  <section class="alert">
+    <h2>Scan incomplete</h2>
+    <p>One or more scanners failed. Treat zero findings as incomplete evidence, not a clean account.</p>
+    <ul>
+      {% for s in r.scanner_errors %}
+      <li><strong>{{ s.name }}</strong>{% if s.message %}: {{ s.message }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
 
   {% if r.compliance %}
   <section id="sec-compliance">
@@ -308,7 +325,7 @@
           </td>
         </tr>
       {% else %}
-        <tr><td colspan="5">No findings.</td></tr>
+        <tr><td colspan="5">{% if r.has_scanner_errors %}No findings were normalized because the scan was incomplete.{% else %}No findings.{% endif %}</td></tr>
       {% endfor %}
       </tbody>
     </table>

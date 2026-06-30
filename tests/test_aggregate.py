@@ -78,3 +78,17 @@ def test_build_report_summary_counts_and_top_risks():
     assert report.top_risks[0].severity is Severity.CRITICAL
     names = {s.name: s.status for s in report.scanners}
     assert names["ash"] == "skipped"
+
+
+def test_build_report_marks_scanner_errors():
+    report = build_report(
+        [ScanResult("prowler", ScanStatus.ERROR, message="scanner timed out")],
+        account_id="123",
+        identity_arn="arn:aws:iam::123:user/me",
+        regions=["us-east-1"],
+        generated_at="now",
+    )
+
+    assert report.has_scanner_errors is True
+    assert report.scanner_errors[0].name == "prowler"
+    assert report.to_dict()["summary"]["scan_complete"] is False

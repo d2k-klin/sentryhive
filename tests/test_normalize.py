@@ -73,6 +73,33 @@ def test_parse_cloudsplaining():
     assert any(f.check == "PrivilegeEscalation" for f in findings)
 
 
+def test_parse_cloudsplaining_native_results():
+    raw = {
+        "customer_managed_policies": {
+            "policy-1": {
+                "PolicyName": "PowerUserPolicy",
+                "Arn": "arn:aws:iam::123456789012:policy/PowerUserPolicy",
+                "PrivilegeEscalation": {
+                    "severity": "high",
+                    "description": "<p>Privilege escalation path</p>",
+                    "findings": [{"type": "CreateAccessKey", "actions": ["iam:CreateAccessKey"]}],
+                },
+                "ServiceWildcard": {"severity": "medium", "description": "", "findings": ["s3:*"]},
+            }
+        },
+        "inline_policies": {},
+        "aws_managed_policies": {},
+    }
+
+    findings = parse_cloudsplaining(raw, account_id="123456789012")
+
+    assert len(findings) == 2
+    assert {f.check for f in findings} == {"PrivilegeEscalation", "ServiceWildcard"}
+    assert all(f.resource == "arn:aws:iam::123456789012:policy/PowerUserPolicy" for f in findings)
+    assert all(f.account_id == "123456789012" for f in findings)
+    assert any(f.severity is Severity.HIGH for f in findings)
+
+
 def test_parse_hardeneks():
     raw = {
         "findings": [
