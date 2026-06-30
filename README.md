@@ -1,36 +1,38 @@
 # ⬡ SentryHive
 
-> Clone, point it at an AWS account, and get a clean security report from best-in-class open-source scanners — no manual tool wrangling.
+> Point it at a client's AWS account and get an evidence-grade security report from best-in-class open-source scanners — no manual tool wrangling.
 
-SentryHive orchestrates several open-source AWS security scanners behind **one command** and merges their output into **one consolidated, severity-ranked report** (HTML + Markdown + JSON). No four-toolchain install nightmare, no four output formats to reconcile.
+SentryHive is built for **security consultants and auditors**. It orchestrates several open-source AWS security scanners behind **one command** and merges their output into **one consolidated, evidence-grade report** (branded HTML + Markdown + JSON) you can hand a client as a deliverable. No four-toolchain install nightmare, no four output formats to reconcile.
 
 ```bash
-docker compose run --rm sentryhive scan --profile my-aws-profile
-# → ./reports/report.html, report.md, findings.json
+docker compose run --rm sentryhive scan \
+  --role-arn arn:aws:iam::CLIENT:role/SentryHiveAudit \
+  --external-id shared-secret --client-name "Acme Corp"
+# → ./reports/report.html (branded), report.md, findings.json
 ```
+
+ScoutSuite — historically the go-to for a single portable HTML audit report — has been effectively unmaintained since May 2024, and Prowler's raw output isn't reporting-friendly. SentryHive's wedge: **Prowler-grade coverage + Cloudsplaining IAM risk, delivered as the clean, branded, evidence-grade report ScoutSuite users are now missing.**
 
 ---
 
 ## Why
 
-Running cloud security tools by hand means installing four toolchains, learning four CLIs, and reading four output formats. SentryHive does the wrangling for you:
-
 1. **Zero-setup** — one Docker image bundles every scanner. You install nothing but Docker.
-2. **Unified report** — every finding is normalized into one schema and one report.
-3. **EKS coverage** — `hardeneks` integration is rare in aggregators.
-4. **Trust-first** — ships a least-privilege IAM policy; **no data leaves your machine**.
+2. **Evidence-grade report** — branded, self-contained HTML with scan metadata, compliance posture per framework, and the IAM privilege-escalation takeover narrative front and center.
+3. **Cross-account first** — assume-role with `--external-id` is the primary path; scan **many client accounts in one run** with a per-account report plus a roll-up.
+4. **Trust-first** — ships least-privilege IAM (CFN + Terraform) for the client to deploy; **no data leaves your machine**.
 5. **CI-native** — drop it into any pipeline as a security gate.
 
 ## Bundled scanners
 
-| Tool | What it does | Target |
-|------|--------------|--------|
-| [Prowler](https://github.com/prowler-cloud/prowler) | 500+ checks across CIS, NIST, PCI, GDPR, HIPAA | live AWS account |
-| [Cloudsplaining](https://github.com/salesforce/cloudsplaining) | IAM policy risk — over-privilege, priv-esc, exposure | live AWS account |
-| [hardeneks](https://github.com/aws-samples/hardeneks) | EKS best-practice checks | live EKS cluster |
-| [ASH](https://github.com/awslabs/automated-security-helper) | Static analysis of IaC/code (Terraform, CFN, secrets) | local files |
+| Tool | What it does | Role |
+|------|--------------|------|
+| [Prowler](https://github.com/prowler-cloud/prowler) | 500+ checks mapped to CIS, PCI-DSS, SOC2, ISO-27001, HIPAA, NIST 800-53 | **core** |
+| [Cloudsplaining](https://github.com/salesforce/cloudsplaining) | IAM policy risk — over-privilege, priv-esc, exposure | **core** |
+| [hardeneks](https://github.com/aws-samples/hardeneks) | EKS best-practice checks | auto-detected |
+| [ASH](https://github.com/awslabs/automated-security-helper) | Static analysis of IaC/code (Terraform, CFN, secrets) | opt-in (`--scanners ...,ash`) |
 
-Prowler / Cloudsplaining / hardeneks scan a **live account**; ASH scans **code on disk**. Pick any subset with `--scanners`.
+The default scan runs **Prowler + Cloudsplaining**. `hardeneks` fires automatically when the account actually runs EKS (disable with `--no-auto-eks`). ASH scans local code/IaC and is opt-in.
 
 ## Quick start (Docker — recommended)
 
@@ -39,19 +41,23 @@ git clone https://github.com/d2k-klin/sentryhive
 cd sentryhive
 docker compose build
 
-# A) using an AWS profile (mounted read-only from ~/.aws)
-docker compose run --rm sentryhive scan --profile my-aws-profile
-
-# B) assume a role (cross-account supported)
+# Primary path: assume a read-only audit role in the client account
 docker compose run --rm sentryhive scan \
-  --role-arn arn:aws:iam::123456789012:role/SentryHiveAudit
+  --role-arn arn:aws:iam::123456789012:role/SentryHiveAudit \
+  --external-id shared-secret --client-name "Acme Corp"
 
-# C) pick scanners + regions
+# Multi-account engagement: per-account reports + a roll-up
+docker compose run --rm sentryhive scan \
+  --role-arn arn:aws:iam::111111111111:role/SentryHiveAudit \
+  --role-arn arn:aws:iam::222222222222:role/SentryHiveAudit \
+  --external-id shared-secret --client-name "Acme Corp"
+
+# Or a local profile, picking scanners + regions
 docker compose run --rm sentryhive scan --profile prod \
   --scanners prowler,cloudsplaining --regions eu-central-1,us-east-1
 ```
 
-Reports appear in `./reports/`.
+Single account → reports land in `./reports/`. Multiple accounts → `./reports/<account-id>/` per account plus a roll-up in `./reports/`.
 
 ## Local install (pip)
 
@@ -64,27 +70,31 @@ sentryhive scanners          # list available scanners
 sentryhive --help
 ```
 
-## Authentication
+## Authentication (cross-account first)
 
-Resolved in priority order:
+Resolved in priority order — assume-role is primary for the consultant workflow:
 
-1. **Profile** — `--profile myprofile` (reads `~/.aws/credentials`)
-2. **Static keys** — env `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`
-3. **Assume role** — `--role-arn ...` (+ optional `--external-id`, cross-account)
+1. **Assume role** — `--role-arn ...` (+ `--external-id`, cross-account). Repeat `--role-arn` to scan several accounts in one run.
+2. **Profile** — `--profile client-x` (reads `~/.aws/credentials`)
+3. **Static keys** — env `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`
 
-SentryHive always runs `sts:GetCallerIdentity` first and prints the account/identity it is about to scan, with a confirmation prompt unless you pass `--yes`.
+SentryHive runs `sts:GetCallerIdentity` per account and prints the account/identity it is about to scan, with a confirmation prompt unless you pass `--yes`.
 
-### Least-privilege IAM
+### Client onboarding — least-privilege audit role
 
-Grant only read-only audit access:
+Hand the **client** a template to deploy a read-only role that trusts your account (+ external ID). Both flavors are shipped:
 
-- [`iam/least-privilege-policy.json`](iam/least-privilege-policy.json) — attach alongside the AWS-managed `SecurityAudit` + `ViewOnlyAccess` policies.
-- [`iam/audit-role.cfn.yaml`](iam/audit-role.cfn.yaml) — one-click CloudFormation role (supports cross-account + external ID).
+- [`iam/audit-role.cfn.yaml`](iam/audit-role.cfn.yaml) — CloudFormation
+- [`iam/audit-role.tf`](iam/audit-role.tf) — Terraform
+- [`iam/least-privilege-policy.json`](iam/least-privilege-policy.json) — the raw policy (attach alongside AWS-managed `SecurityAudit` + `ViewOnlyAccess`)
 
 ```bash
+# Client runs this in their account:
 aws cloudformation deploy --template-file iam/audit-role.cfn.yaml \
   --stack-name sentryhive-audit --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides TrustedPrincipalArn=arn:aws:iam::<YOU>:root
+  --parameter-overrides TrustedPrincipalArn=arn:aws:iam::<CONSULTANT>:root \
+                        ExternalId=<shared-secret>
+# Then hands you the role ARN → sentryhive scan --role-arn <arn> --external-id <shared-secret>
 ```
 
 ## CLI

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SentryHive Security Report — 123456789012</title>
+<title>SentryHive Security Report — Acme Corp</title>
 <style>
   :root { --bg:#0f172a; --card:#1e293b; --ink:#e2e8f0; --muted:#94a3b8; --line:#334155; }
   * { box-sizing: border-box; }
@@ -40,16 +40,26 @@
   .pill { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:1px 7px; }
   footer { color:var(--muted); font-size:12px; text-align:center; padding:24px; }
   a { color:#60a5fa; }
+  .brand { display:flex; align-items:center; gap:16px; }
+  .brand img { max-height:48px; max-width:180px; border-radius:6px; background:#fff; padding:4px; }
+  .client { font-size:13px; color:#fbbf24; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+  .bar { height:10px; border-radius:999px; background:#0b1220; overflow:hidden; min-width:120px; }
+  .bar > span { display:block; height:100%; background:#22c55e; }
 </style>
 </head>
 <body>
 <header>
-  <h1><span class="hex">⬡</span> SentryHive Security Report</h1>
+  <div class="brand">
+    <div>
+<div class="client">Acme Corp</div>      <h1><span class="hex">⬡</span> SentryHive Security Report</h1>
+    </div>
+  </div>
   <div class="meta">
     <span>Account <code>123456789012</code></span>
     <span>Identity <code>arn:aws:iam::123456789012:role/SentryHiveAudit</code></span>
     <span>Regions <code>us-east-1, eu-central-1</code></span>
     <span>Generated <code>2026-06-30 12:00:00 UTC</code></span>
+    <span>SentryHive <code>v0.1.0</code></span>
   </div>
 </header>
 <main>
@@ -59,11 +69,11 @@
       <div class="l">Critical</div>
     </div>
     <div class="card">
-      <div class="n" style="color:#dc2626">5</div>
+      <div class="n" style="color:#dc2626">4</div>
       <div class="l">High</div>
     </div>
     <div class="card">
-      <div class="n" style="color:#d97706">3</div>
+      <div class="n" style="color:#d97706">1</div>
       <div class="l">Medium</div>
     </div>
     <div class="card">
@@ -71,31 +81,102 @@
       <div class="l">Low</div>
     </div>
     <div class="card">
-      <div class="n" style="color:#6b7280">1</div>
+      <div class="n" style="color:#6b7280">2</div>
       <div class="l">Info</div>
     </div>
-    <div class="card"><div class="n">11</div><div class="l">Total</div></div>
+    <div class="card"><div class="n">9</div><div class="l">Total</div></div>
   </div>
 
   <section>
-    <h2>Scanners</h2>
+    <h2>Compliance posture</h2>
     <table>
-      <thead><tr><th>Scanner</th><th>Status</th><th>Findings</th><th>Notes</th></tr></thead>
+      <thead><tr><th>Framework</th><th>Pass</th><th>Fail</th><th style="width:40%">% pass</th></tr></thead>
       <tbody>
-        <tr><td>prowler</td><td><span class="pill">ok</span></td>
-            <td>5</td><td></td></tr>
-        <tr><td>cloudsplaining</td><td><span class="pill">ok</span></td>
-            <td>2</td><td></td></tr>
-        <tr><td>hardeneks</td><td><span class="pill">ok</span></td>
-            <td>2</td><td></td></tr>
-        <tr><td>ash</td><td><span class="pill">ok</span></td>
-            <td>2</td><td></td></tr>
+        <tr>
+          <td><strong>CIS</strong></td>
+          <td>2</td>
+          <td>5</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="bar"><span style="width:29%"></span></div>
+              <span>29%</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>PCI-DSS</strong></td>
+          <td>1</td>
+          <td>2</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="bar"><span style="width:33%"></span></div>
+              <span>33%</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>NIST 800-53</strong></td>
+          <td>0</td>
+          <td>1</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="bar"><span style="width:0%"></span></div>
+              <span>0%</span>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>SOC 2</strong></td>
+          <td>1</td>
+          <td>1</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="bar"><span style="width:50%"></span></div>
+              <span>50%</span>
+            </div>
+          </td>
+        </tr>
       </tbody>
     </table>
   </section>
 
   <section>
-    <h2>Top 10 risks</h2>
+    <h2>IAM privilege-escalation highlights</h2>
+    <p style="color:var(--muted);margin-top:-6px">How an attacker could escalate or take over within this account.</p>
+    <table>
+      <thead><tr><th>Severity</th><th>Resource</th><th>Finding</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="sev" style="background:#dc2626">High</span></td>
+          <td><code>DeployRole</code></td>
+          <td>Privilege escalation path: DeployRole<br><span style="color:var(--muted)">Policy 'DeployRole' grants iam:CreatePolicyVersion, iam:PassRole.</span></td>
+        </tr>
+        <tr>
+          <td><span class="sev" style="background:#dc2626">High</span></td>
+          <td><code>BackupRole</code></td>
+          <td>Resource exposure: BackupRole<br><span style="color:var(--muted)">Policy 'BackupRole' grants s3:PutBucketPolicy on *.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Scanners</h2>
+    <table>
+      <thead><tr><th>Scanner</th><th>Status</th><th>Findings</th><th>Version</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>prowler</td><td><span class="pill">ok</span></td>
+            <td>6</td><td><span class="pill">Prowler 4.5.0</span></td><td></td></tr>
+        <tr><td>cloudsplaining</td><td><span class="pill">ok</span></td>
+            <td>2</td><td><span class="pill">cloudsplaining 0.7.0</span></td><td></td></tr>
+        <tr><td>hardeneks</td><td><span class="pill">ok</span></td>
+            <td>1</td><td><span class="pill">hardeneks 0.12.0</span></td><td></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Top 7 risks</h2>
     <table>
       <thead><tr><th>#</th><th>Severity</th><th>Tool</th><th>Resource</th><th>Check</th></tr></thead>
       <tbody>
@@ -116,58 +197,37 @@
         <tr>
           <td>3</td>
           <td><span class="sev" style="background:#dc2626">High</span></td>
-          <td>ash</td>
-          <td><code>app/config.py:42</code></td>
-          <td>Hardcoded AWS access key in source</td>
-        </tr>
-        <tr>
-          <td>4</td>
-          <td><span class="sev" style="background:#dc2626">High</span></td>
           <td>cloudsplaining</td>
           <td><code>DeployRole</code></td>
           <td>Privilege escalation path: DeployRole</td>
         </tr>
         <tr>
-          <td>5</td>
+          <td>4</td>
           <td><span class="sev" style="background:#dc2626">High</span></td>
           <td>cloudsplaining</td>
           <td><code>BackupRole</code></td>
           <td>Resource exposure: BackupRole</td>
         </tr>
         <tr>
-          <td>6</td>
+          <td>5</td>
           <td><span class="sev" style="background:#dc2626">High</span></td>
           <td>hardeneks</td>
           <td><code>prod-cluster/kube-system</code></td>
           <td>Anonymous access bound to cluster role</td>
         </tr>
         <tr>
-          <td>7</td>
+          <td>6</td>
           <td><span class="sev" style="background:#dc2626">High</span></td>
           <td>prowler</td>
           <td><code>sg-0a1b2c3d</code></td>
           <td>Security group exposes SSH to 0.0.0.0/0</td>
         </tr>
         <tr>
-          <td>8</td>
-          <td><span class="sev" style="background:#d97706">Medium</span></td>
-          <td>ash</td>
-          <td><code>terraform/s3.tf:14</code></td>
-          <td>S3 bucket has no access logging</td>
-        </tr>
-        <tr>
-          <td>9</td>
-          <td><span class="sev" style="background:#d97706">Medium</span></td>
-          <td>hardeneks</td>
-          <td><code>prod-cluster/default</code></td>
-          <td>Wildcards used in Role rules</td>
-        </tr>
-        <tr>
-          <td>10</td>
+          <td>7</td>
           <td><span class="sev" style="background:#d97706">Medium</span></td>
           <td>prowler</td>
-          <td><code>account</code></td>
-          <td>CloudTrail not enabled in all regions</td>
+          <td><code>org-trail</code></td>
+          <td>CloudTrail log file validation disabled</td>
         </tr>
       </tbody>
     </table>
@@ -182,7 +242,7 @@
 <option value="Critical">Critical</option><option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option><option value="Info">Info</option>      </select>
       <select id="ftool">
         <option value="">All tools</option>
-<option value="prowler">prowler</option><option value="cloudsplaining">cloudsplaining</option><option value="hardeneks">hardeneks</option><option value="ash">ash</option>      </select>
+<option value="prowler">prowler</option><option value="cloudsplaining">cloudsplaining</option><option value="hardeneks">hardeneks</option>      </select>
       <select id="fstatus">
         <option value="">All statuses</option>
         <option value="fail">fail</option>
@@ -202,9 +262,9 @@
           <td>
             <strong>Root account has no MFA</strong>
             <span class="pill">fail</span>
-            <details>
+<span class="pill">CIS:1.5</span><span class="pill">SOC2:CC6.1</span>            <details>
               <summary>details</summary>
-<p>The account root user does not have MFA enabled.</p><p class="remediation">→ Enable a hardware or virtual MFA device on the root user.</p><p><span class="pill">CIS:1.5</span> </p>              <p><span class="pill">id: 84e15d2c7110</span> <span class="pill">check: iam_root_mfa_enabled</span></p>
+<p>The account root user does not have MFA enabled.</p><p class="remediation">→ Enable a hardware or virtual MFA device on the root user.</p>              <p><span class="pill">id: 84e15d2c7110</span> <span class="pill">check: iam_root_mfa_enabled</span> <span class="pill">source: prowler</span></p>
             </details>
           </td>
         </tr>
@@ -217,24 +277,9 @@
           <td>
             <strong>S3 bucket allows public access</strong>
             <span class="pill">fail</span>
-            <details>
+<span class="pill">CIS:2.1.5</span><span class="pill">PCI-DSS:1.3.1</span><span class="pill">NIST:SC-7</span>            <details>
               <summary>details</summary>
-<p>Bucket 'acme-prod-assets' grants s3:GetObject to *.</p><p class="remediation">→ Enable S3 Block Public Access at the account and bucket level.</p><p><span class="pill">CIS:2.1.5</span> <span class="pill">NIST:SC-7</span> </p>              <p><span class="pill">id: b394bf6e9701</span> <span class="pill">check: s3_bucket_public_access</span></p>
-            </details>
-          </td>
-        </tr>
-        <tr class="frow" data-sev="High" data-tool="ash" data-status="fail"
-            data-text="hardcoded aws access key in source detect-secrets app/config.py:42 possible aws secret in config.py. detect-secrets">
-          <td><span class="sev" style="background:#dc2626">High</span></td>
-          <td>ash</td>
-          <td>detect-secrets</td>
-          <td><code>app/config.py:42</code></td>
-          <td>
-            <strong>Hardcoded AWS access key in source</strong>
-            <span class="pill">fail</span>
-            <details>
-              <summary>details</summary>
-<p>Possible AWS secret in config.py.</p><p class="remediation">→ Remove the secret, rotate the key, use environment variables or Secrets Manager.</p><p><span class="pill">CWE-798</span> </p>              <p><span class="pill">id: be6e5b6afd56</span> <span class="pill">check: detect-secrets</span></p>
+<p>Bucket 'acme-prod-assets' grants s3:GetObject to *.</p><p class="remediation">→ Enable S3 Block Public Access at the account and bucket level.</p>              <p><span class="pill">id: b394bf6e9701</span> <span class="pill">check: s3_bucket_public_access</span> <span class="pill">source: prowler</span></p>
             </details>
           </td>
         </tr>
@@ -247,9 +292,9 @@
           <td>
             <strong>Privilege escalation path: DeployRole</strong>
             <span class="pill">fail</span>
-            <details>
+<span class="pill">CIS-1.16</span><span class="pill">IAM-least-privilege</span>            <details>
               <summary>details</summary>
-<p>Policy 'DeployRole' grants iam:CreatePolicyVersion, iam:PassRole.</p><p class="remediation">→ Apply least privilege; scope iam:PassRole with a condition.</p><p><span class="pill">CIS-1.16</span> <span class="pill">IAM-least-privilege</span> </p>              <p><span class="pill">id: 8c3547fe4069</span> <span class="pill">check: PrivilegeEscalation</span></p>
+<p>Policy 'DeployRole' grants iam:CreatePolicyVersion, iam:PassRole.</p><p class="remediation">→ Apply least privilege; scope iam:PassRole with a condition.</p>              <p><span class="pill">id: 8c3547fe4069</span> <span class="pill">check: PrivilegeEscalation</span> <span class="pill">source: cloudsplaining</span></p>
             </details>
           </td>
         </tr>
@@ -262,9 +307,9 @@
           <td>
             <strong>Resource exposure: BackupRole</strong>
             <span class="pill">fail</span>
-            <details>
+<span class="pill">IAM-least-privilege</span>            <details>
               <summary>details</summary>
-<p>Policy 'BackupRole' grants s3:PutBucketPolicy on *.</p><p class="remediation">→ Restrict permissions-management actions to specific resources.</p><p><span class="pill">IAM-least-privilege</span> </p>              <p><span class="pill">id: cbc439ae17a7</span> <span class="pill">check: ResourceExposure</span></p>
+<p>Policy 'BackupRole' grants s3:PutBucketPolicy on *.</p><p class="remediation">→ Restrict permissions-management actions to specific resources.</p>              <p><span class="pill">id: cbc439ae17a7</span> <span class="pill">check: ResourceExposure</span> <span class="pill">source: cloudsplaining</span></p>
             </details>
           </td>
         </tr>
@@ -277,9 +322,9 @@
           <td>
             <strong>Anonymous access bound to cluster role</strong>
             <span class="pill">fail</span>
-            <details>
+<span class="pill">EKS-best-practices</span>            <details>
               <summary>details</summary>
-<p>system:anonymous is bound via a ClusterRoleBinding.</p><p class="remediation">→ Remove the ClusterRoleBinding granting access to system:anonymous.</p><p><span class="pill">EKS-best-practices</span> </p>              <p><span class="pill">id: 42932be4a39b</span> <span class="pill">check: disable_anonymous_access_for_cluster_roles</span></p>
+<p>system:anonymous is bound via a ClusterRoleBinding.</p><p class="remediation">→ Remove the ClusterRoleBinding granting access to system:anonymous.</p>              <p><span class="pill">id: 42932be4a39b</span> <span class="pill">check: disable_anonymous_access_for_cluster_roles</span> <span class="pill">source: hardeneks</span></p>
             </details>
           </td>
         </tr>
@@ -292,54 +337,39 @@
           <td>
             <strong>Security group exposes SSH to 0.0.0.0/0</strong>
             <span class="pill">fail</span>
-            <details>
+<span class="pill">CIS:5.2</span><span class="pill">PCI-DSS:1.2.1</span>            <details>
               <summary>details</summary>
-<p>sg-0a1b2c3d allows inbound 22 from anywhere.</p><p class="remediation">→ Restrict ingress to known CIDR ranges or use SSM Session Manager.</p><p><span class="pill">CIS:5.2</span> </p>              <p><span class="pill">id: 555f22b2f64a</span> <span class="pill">check: ec2_sg_open_ssh</span></p>
-            </details>
-          </td>
-        </tr>
-        <tr class="frow" data-sev="Medium" data-tool="ash" data-status="fail"
-            data-text="s3 bucket has no access logging ckv_aws_18 terraform/s3.tf:14 aws_s3_bucket.assets missing logging block. checkov">
-          <td><span class="sev" style="background:#d97706">Medium</span></td>
-          <td>ash</td>
-          <td>checkov</td>
-          <td><code>terraform/s3.tf:14</code></td>
-          <td>
-            <strong>S3 bucket has no access logging</strong>
-            <span class="pill">fail</span>
-            <details>
-              <summary>details</summary>
-<p>aws_s3_bucket.assets missing logging block.</p><p class="remediation">→ Add a logging {} block referencing a log bucket.</p><p><span class="pill">CIS:2.6</span> </p>              <p><span class="pill">id: 8fa312269559</span> <span class="pill">check: CKV_AWS_18</span></p>
-            </details>
-          </td>
-        </tr>
-        <tr class="frow" data-sev="Medium" data-tool="hardeneks" data-status="fail"
-            data-text="wildcards used in role rules restrict_wildcard_for_roles prod-cluster/default role 'app-role' uses '*' for verbs. eks">
-          <td><span class="sev" style="background:#d97706">Medium</span></td>
-          <td>hardeneks</td>
-          <td>eks<br><span class="pill">eu-central-1</span></td>
-          <td><code>prod-cluster/default</code></td>
-          <td>
-            <strong>Wildcards used in Role rules</strong>
-            <span class="pill">fail</span>
-            <details>
-              <summary>details</summary>
-<p>Role 'app-role' uses '*' for verbs.</p><p class="remediation">→ Replace wildcard verbs with explicit verbs.</p><p><span class="pill">EKS-best-practices</span> </p>              <p><span class="pill">id: 4b665b4b4361</span> <span class="pill">check: restrict_wildcard_for_roles</span></p>
+<p>sg-0a1b2c3d allows inbound 22 from anywhere.</p><p class="remediation">→ Restrict ingress to known CIDR ranges or use SSM Session Manager.</p>              <p><span class="pill">id: 555f22b2f64a</span> <span class="pill">check: ec2_sg_open_ssh</span> <span class="pill">source: prowler</span></p>
             </details>
           </td>
         </tr>
         <tr class="frow" data-sev="Medium" data-tool="prowler" data-status="fail"
-            data-text="cloudtrail not enabled in all regions cloudtrail_enabled account multi-region trail missing in 3 regions. cloudtrail">
+            data-text="cloudtrail log file validation disabled cloudtrail_log_validation org-trail trail lacks log file integrity validation. cloudtrail">
           <td><span class="sev" style="background:#d97706">Medium</span></td>
           <td>prowler</td>
           <td>cloudtrail<br><span class="pill">us-east-1</span></td>
-          <td><code>account</code></td>
+          <td><code>org-trail</code></td>
           <td>
-            <strong>CloudTrail not enabled in all regions</strong>
+            <strong>CloudTrail log file validation disabled</strong>
             <span class="pill">fail</span>
-            <details>
+<span class="pill">CIS:3.2</span>            <details>
               <summary>details</summary>
-<p>Multi-region trail missing in 3 regions.</p><p class="remediation">→ Create an organization multi-region CloudTrail.</p><p><span class="pill">CIS:3.1</span> </p>              <p><span class="pill">id: 9de8adf38ae3</span> <span class="pill">check: cloudtrail_enabled</span></p>
+<p>Trail lacks log file integrity validation.</p><p class="remediation">→ Enable log file validation on the trail.</p>              <p><span class="pill">id: 41a7cfd5da13</span> <span class="pill">check: cloudtrail_log_validation</span> <span class="pill">source: prowler</span></p>
+            </details>
+          </td>
+        </tr>
+        <tr class="frow" data-sev="Info" data-tool="prowler" data-status="pass"
+            data-text="cloudtrail enabled in all regions cloudtrail_multi_region org-trail org multi-region trail present. cloudtrail">
+          <td><span class="sev" style="background:#6b7280">Info</span></td>
+          <td>prowler</td>
+          <td>cloudtrail<br><span class="pill">us-east-1</span></td>
+          <td><code>org-trail</code></td>
+          <td>
+            <strong>CloudTrail enabled in all regions</strong>
+            <span class="pill">pass</span>
+<span class="pill">CIS:3.1</span><span class="pill">SOC2:CC7.2</span>            <details>
+              <summary>details</summary>
+<p>Org multi-region trail present.</p>              <p><span class="pill">id: eb25a62c644e</span> <span class="pill">check: cloudtrail_multi_region</span> <span class="pill">source: prowler</span></p>
             </details>
           </td>
         </tr>
@@ -352,9 +382,9 @@
           <td>
             <strong>RDS instance is encrypted</strong>
             <span class="pill">pass</span>
-            <details>
+<span class="pill">CIS:2.3.1</span><span class="pill">PCI-DSS:3.4</span>            <details>
               <summary>details</summary>
-<p>prod-db has storage encryption enabled.</p><p><span class="pill">CIS:2.3.1</span> </p>              <p><span class="pill">id: 779156f1bfa2</span> <span class="pill">check: rds_encryption_enabled</span></p>
+<p>prod-db has storage encryption enabled.</p>              <p><span class="pill">id: 779156f1bfa2</span> <span class="pill">check: rds_encryption_enabled</span> <span class="pill">source: prowler</span></p>
             </details>
           </td>
         </tr>

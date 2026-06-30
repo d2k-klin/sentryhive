@@ -1,60 +1,88 @@
 {
+  "client_name": "Acme Corp",
   "account_id": "123456789012",
+  "accounts": [],
   "identity_arn": "arn:aws:iam::123456789012:role/SentryHiveAudit",
   "regions": [
     "us-east-1",
     "eu-central-1"
   ],
   "generated_at": "2026-06-30 12:00:00 UTC",
+  "sentryhive_version": "0.1.0",
   "summary": {
-    "total": 11,
+    "total": 9,
     "by_severity": {
       "Critical": 2,
-      "High": 5,
-      "Medium": 3,
+      "High": 4,
+      "Medium": 1,
       "Low": 0,
-      "Info": 1
+      "Info": 2
     },
     "by_status": {
-      "fail": 10,
-      "pass": 1,
+      "fail": 7,
+      "pass": 2,
       "info": 0
     },
     "services": [
-      "checkov",
       "cloudtrail",
-      "detect-secrets",
       "ec2",
       "eks",
       "iam",
       "rds",
       "s3"
+    ],
+    "compliance": [
+      {
+        "framework": "CIS",
+        "passed": 2,
+        "failed": 5,
+        "pass_pct": 29,
+        "total": 7
+      },
+      {
+        "framework": "PCI-DSS",
+        "passed": 1,
+        "failed": 2,
+        "pass_pct": 33,
+        "total": 3
+      },
+      {
+        "framework": "NIST 800-53",
+        "passed": 0,
+        "failed": 1,
+        "pass_pct": 0,
+        "total": 1
+      },
+      {
+        "framework": "SOC 2",
+        "passed": 1,
+        "failed": 1,
+        "pass_pct": 50,
+        "total": 2
+      }
     ]
   },
   "scanners": [
     {
       "name": "prowler",
       "status": "ok",
-      "findings": 5,
-      "message": ""
+      "findings": 6,
+      "message": "",
+      "version": "Prowler 4.5.0"
     },
     {
       "name": "cloudsplaining",
       "status": "ok",
       "findings": 2,
-      "message": ""
+      "message": "",
+      "version": "cloudsplaining 0.7.0"
     },
     {
       "name": "hardeneks",
       "status": "ok",
-      "findings": 2,
-      "message": ""
-    },
-    {
-      "name": "ash",
-      "status": "ok",
-      "findings": 2,
-      "message": ""
+      "findings": 1,
+      "message": "",
+      "version": "hardeneks 0.12.0"
     }
   ],
   "findings": [
@@ -70,7 +98,8 @@
       "status": "fail",
       "remediation": "Enable a hardware or virtual MFA device on the root user.",
       "compliance_refs": [
-        "CIS:1.5"
+        "CIS:1.5",
+        "SOC2:CC6.1"
       ],
       "account_id": "",
       "id": "84e15d2c7110",
@@ -89,29 +118,12 @@
       "remediation": "Enable S3 Block Public Access at the account and bucket level.",
       "compliance_refs": [
         "CIS:2.1.5",
+        "PCI-DSS:1.3.1",
         "NIST:SC-7"
       ],
       "account_id": "",
       "id": "b394bf6e9701",
       "severity_rank": 4
-    },
-    {
-      "tool": "ash",
-      "check": "detect-secrets",
-      "title": "Hardcoded AWS access key in source",
-      "description": "Possible AWS secret in config.py.",
-      "severity": "High",
-      "resource": "app/config.py:42",
-      "service": "detect-secrets",
-      "region": "",
-      "status": "fail",
-      "remediation": "Remove the secret, rotate the key, use environment variables or Secrets Manager.",
-      "compliance_refs": [
-        "CWE-798"
-      ],
-      "account_id": "",
-      "id": "be6e5b6afd56",
-      "severity_rank": 3
     },
     {
       "tool": "cloudsplaining",
@@ -180,65 +192,49 @@
       "status": "fail",
       "remediation": "Restrict ingress to known CIDR ranges or use SSM Session Manager.",
       "compliance_refs": [
-        "CIS:5.2"
+        "CIS:5.2",
+        "PCI-DSS:1.2.1"
       ],
       "account_id": "",
       "id": "555f22b2f64a",
       "severity_rank": 3
     },
     {
-      "tool": "ash",
-      "check": "CKV_AWS_18",
-      "title": "S3 bucket has no access logging",
-      "description": "aws_s3_bucket.assets missing logging block.",
+      "tool": "prowler",
+      "check": "cloudtrail_log_validation",
+      "title": "CloudTrail log file validation disabled",
+      "description": "Trail lacks log file integrity validation.",
       "severity": "Medium",
-      "resource": "terraform/s3.tf:14",
-      "service": "checkov",
-      "region": "",
+      "resource": "org-trail",
+      "service": "cloudtrail",
+      "region": "us-east-1",
       "status": "fail",
-      "remediation": "Add a logging {} block referencing a log bucket.",
+      "remediation": "Enable log file validation on the trail.",
       "compliance_refs": [
-        "CIS:2.6"
+        "CIS:3.2"
       ],
       "account_id": "",
-      "id": "8fa312269559",
-      "severity_rank": 2
-    },
-    {
-      "tool": "hardeneks",
-      "check": "restrict_wildcard_for_roles",
-      "title": "Wildcards used in Role rules",
-      "description": "Role 'app-role' uses '*' for verbs.",
-      "severity": "Medium",
-      "resource": "prod-cluster/default",
-      "service": "eks",
-      "region": "eu-central-1",
-      "status": "fail",
-      "remediation": "Replace wildcard verbs with explicit verbs.",
-      "compliance_refs": [
-        "EKS-best-practices"
-      ],
-      "account_id": "",
-      "id": "4b665b4b4361",
+      "id": "41a7cfd5da13",
       "severity_rank": 2
     },
     {
       "tool": "prowler",
-      "check": "cloudtrail_enabled",
-      "title": "CloudTrail not enabled in all regions",
-      "description": "Multi-region trail missing in 3 regions.",
-      "severity": "Medium",
-      "resource": "account",
+      "check": "cloudtrail_multi_region",
+      "title": "CloudTrail enabled in all regions",
+      "description": "Org multi-region trail present.",
+      "severity": "Info",
+      "resource": "org-trail",
       "service": "cloudtrail",
       "region": "us-east-1",
-      "status": "fail",
-      "remediation": "Create an organization multi-region CloudTrail.",
+      "status": "pass",
+      "remediation": "",
       "compliance_refs": [
-        "CIS:3.1"
+        "CIS:3.1",
+        "SOC2:CC7.2"
       ],
       "account_id": "",
-      "id": "9de8adf38ae3",
-      "severity_rank": 2
+      "id": "eb25a62c644e",
+      "severity_rank": 0
     },
     {
       "tool": "prowler",
@@ -252,7 +248,8 @@
       "status": "pass",
       "remediation": "",
       "compliance_refs": [
-        "CIS:2.3.1"
+        "CIS:2.3.1",
+        "PCI-DSS:3.4"
       ],
       "account_id": "",
       "id": "779156f1bfa2",

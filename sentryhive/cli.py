@@ -25,7 +25,7 @@ from sentryhive.auth import AuthError, build_contexts, discover_eks_clusters
 from sentryhive.report import write_reports
 from sentryhive.scanners import ALL_SCANNERS, build_scanners
 from sentryhive.scanners.ash import AshScanner
-from sentryhive.scanners.base import ScanStatus, Scanner
+from sentryhive.scanners.base import Scanner
 from sentryhive.scanners.hardeneks import HardeneksScanner
 
 #: Default scanners for the consultant audience: compliance + IAM risk (addendum §2).

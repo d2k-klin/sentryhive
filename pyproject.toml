@@ -51,6 +51,10 @@ target-version = "py310"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.per-file-ignores]
+# Typer requires calling typer.Option/Argument in parameter defaults.
+"sentryhive/cli.py" = ["B008"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
