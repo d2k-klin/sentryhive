@@ -1,0 +1,262 @@
+{
+  "account_id": "123456789012",
+  "identity_arn": "arn:aws:iam::123456789012:role/SentryHiveAudit",
+  "regions": [
+    "us-east-1",
+    "eu-central-1"
+  ],
+  "generated_at": "2026-06-30 12:00:00 UTC",
+  "summary": {
+    "total": 11,
+    "by_severity": {
+      "Critical": 2,
+      "High": 5,
+      "Medium": 3,
+      "Low": 0,
+      "Info": 1
+    },
+    "by_status": {
+      "fail": 10,
+      "pass": 1,
+      "info": 0
+    },
+    "services": [
+      "checkov",
+      "cloudtrail",
+      "detect-secrets",
+      "ec2",
+      "eks",
+      "iam",
+      "rds",
+      "s3"
+    ]
+  },
+  "scanners": [
+    {
+      "name": "prowler",
+      "status": "ok",
+      "findings": 5,
+      "message": ""
+    },
+    {
+      "name": "cloudsplaining",
+      "status": "ok",
+      "findings": 2,
+      "message": ""
+    },
+    {
+      "name": "hardeneks",
+      "status": "ok",
+      "findings": 2,
+      "message": ""
+    },
+    {
+      "name": "ash",
+      "status": "ok",
+      "findings": 2,
+      "message": ""
+    }
+  ],
+  "findings": [
+    {
+      "tool": "prowler",
+      "check": "iam_root_mfa_enabled",
+      "title": "Root account has no MFA",
+      "description": "The account root user does not have MFA enabled.",
+      "severity": "Critical",
+      "resource": "root",
+      "service": "iam",
+      "region": "us-east-1",
+      "status": "fail",
+      "remediation": "Enable a hardware or virtual MFA device on the root user.",
+      "compliance_refs": [
+        "CIS:1.5"
+      ],
+      "account_id": "",
+      "id": "84e15d2c7110",
+      "severity_rank": 4
+    },
+    {
+      "tool": "prowler",
+      "check": "s3_bucket_public_access",
+      "title": "S3 bucket allows public access",
+      "description": "Bucket 'acme-prod-assets' grants s3:GetObject to *.",
+      "severity": "Critical",
+      "resource": "arn:aws:s3:::acme-prod-assets",
+      "service": "s3",
+      "region": "us-east-1",
+      "status": "fail",
+      "remediation": "Enable S3 Block Public Access at the account and bucket level.",
+      "compliance_refs": [
+        "CIS:2.1.5",
+        "NIST:SC-7"
+      ],
+      "account_id": "",
+      "id": "b394bf6e9701",
+      "severity_rank": 4
+    },
+    {
+      "tool": "ash",
+      "check": "detect-secrets",
+      "title": "Hardcoded AWS access key in source",
+      "description": "Possible AWS secret in config.py.",
+      "severity": "High",
+      "resource": "app/config.py:42",
+      "service": "detect-secrets",
+      "region": "",
+      "status": "fail",
+      "remediation": "Remove the secret, rotate the key, use environment variables or Secrets Manager.",
+      "compliance_refs": [
+        "CWE-798"
+      ],
+      "account_id": "",
+      "id": "be6e5b6afd56",
+      "severity_rank": 3
+    },
+    {
+      "tool": "cloudsplaining",
+      "check": "PrivilegeEscalation",
+      "title": "Privilege escalation path: DeployRole",
+      "description": "Policy 'DeployRole' grants iam:CreatePolicyVersion, iam:PassRole.",
+      "severity": "High",
+      "resource": "DeployRole",
+      "service": "iam",
+      "region": "",
+      "status": "fail",
+      "remediation": "Apply least privilege; scope iam:PassRole with a condition.",
+      "compliance_refs": [
+        "CIS-1.16",
+        "IAM-least-privilege"
+      ],
+      "account_id": "",
+      "id": "8c3547fe4069",
+      "severity_rank": 3
+    },
+    {
+      "tool": "cloudsplaining",
+      "check": "ResourceExposure",
+      "title": "Resource exposure: BackupRole",
+      "description": "Policy 'BackupRole' grants s3:PutBucketPolicy on *.",
+      "severity": "High",
+      "resource": "BackupRole",
+      "service": "iam",
+      "region": "",
+      "status": "fail",
+      "remediation": "Restrict permissions-management actions to specific resources.",
+      "compliance_refs": [
+        "IAM-least-privilege"
+      ],
+      "account_id": "",
+      "id": "cbc439ae17a7",
+      "severity_rank": 3
+    },
+    {
+      "tool": "hardeneks",
+      "check": "disable_anonymous_access_for_cluster_roles",
+      "title": "Anonymous access bound to cluster role",
+      "description": "system:anonymous is bound via a ClusterRoleBinding.",
+      "severity": "High",
+      "resource": "prod-cluster/kube-system",
+      "service": "eks",
+      "region": "eu-central-1",
+      "status": "fail",
+      "remediation": "Remove the ClusterRoleBinding granting access to system:anonymous.",
+      "compliance_refs": [
+        "EKS-best-practices"
+      ],
+      "account_id": "",
+      "id": "42932be4a39b",
+      "severity_rank": 3
+    },
+    {
+      "tool": "prowler",
+      "check": "ec2_sg_open_ssh",
+      "title": "Security group exposes SSH to 0.0.0.0/0",
+      "description": "sg-0a1b2c3d allows inbound 22 from anywhere.",
+      "severity": "High",
+      "resource": "sg-0a1b2c3d",
+      "service": "ec2",
+      "region": "eu-central-1",
+      "status": "fail",
+      "remediation": "Restrict ingress to known CIDR ranges or use SSM Session Manager.",
+      "compliance_refs": [
+        "CIS:5.2"
+      ],
+      "account_id": "",
+      "id": "555f22b2f64a",
+      "severity_rank": 3
+    },
+    {
+      "tool": "ash",
+      "check": "CKV_AWS_18",
+      "title": "S3 bucket has no access logging",
+      "description": "aws_s3_bucket.assets missing logging block.",
+      "severity": "Medium",
+      "resource": "terraform/s3.tf:14",
+      "service": "checkov",
+      "region": "",
+      "status": "fail",
+      "remediation": "Add a logging {} block referencing a log bucket.",
+      "compliance_refs": [
+        "CIS:2.6"
+      ],
+      "account_id": "",
+      "id": "8fa312269559",
+      "severity_rank": 2
+    },
+    {
+      "tool": "hardeneks",
+      "check": "restrict_wildcard_for_roles",
+      "title": "Wildcards used in Role rules",
+      "description": "Role 'app-role' uses '*' for verbs.",
+      "severity": "Medium",
+      "resource": "prod-cluster/default",
+      "service": "eks",
+      "region": "eu-central-1",
+      "status": "fail",
+      "remediation": "Replace wildcard verbs with explicit verbs.",
+      "compliance_refs": [
+        "EKS-best-practices"
+      ],
+      "account_id": "",
+      "id": "4b665b4b4361",
+      "severity_rank": 2
+    },
+    {
+      "tool": "prowler",
+      "check": "cloudtrail_enabled",
+      "title": "CloudTrail not enabled in all regions",
+      "description": "Multi-region trail missing in 3 regions.",
+      "severity": "Medium",
+      "resource": "account",
+      "service": "cloudtrail",
+      "region": "us-east-1",
+      "status": "fail",
+      "remediation": "Create an organization multi-region CloudTrail.",
+      "compliance_refs": [
+        "CIS:3.1"
+      ],
+      "account_id": "",
+      "id": "9de8adf38ae3",
+      "severity_rank": 2
+    },
+    {
+      "tool": "prowler",
+      "check": "rds_encryption_enabled",
+      "title": "RDS instance is encrypted",
+      "description": "prod-db has storage encryption enabled.",
+      "severity": "Info",
+      "resource": "arn:aws:rds:eu-central-1:123456789012:db:prod-db",
+      "service": "rds",
+      "region": "eu-central-1",
+      "status": "pass",
+      "remediation": "",
+      "compliance_refs": [
+        "CIS:2.3.1"
+      ],
+      "account_id": "",
+      "id": "779156f1bfa2",
+      "severity_rank": 0
+    }
+  ]
+}
