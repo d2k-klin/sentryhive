@@ -1,5 +1,5 @@
 # SentryHive — single image bundling all scanners so users install nothing but Docker.
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 LABEL org.opencontainers.image.title="SentryHive" \
       org.opencontainers.image.description="AWS security scanning toolkit — one image, one report." \
