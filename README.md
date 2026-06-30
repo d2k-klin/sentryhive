@@ -2,6 +2,12 @@
 
 > Point it at a client's AWS account and get an evidence-grade security report from best-in-class open-source scanners — no manual tool wrangling.
 
+[![CI](https://github.com/d2k-klin/sentryhive/actions/workflows/ci.yml/badge.svg)](https://github.com/d2k-klin/sentryhive/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+[![Docs](https://img.shields.io/badge/docs-docs%2F-blue.svg)](docs/index.md)
+[![Read-only](https://img.shields.io/badge/AWS-read--only-green.svg)](docs/iam-permissions.md)
+
 SentryHive is built for **security consultants and auditors**. It orchestrates several open-source AWS security scanners behind **one command** and merges their output into **one consolidated, evidence-grade report** (branded HTML + Markdown + JSON) you can hand a client as a deliverable. No four-toolchain install nightmare, no four output formats to reconcile.
 
 ```bash
@@ -106,16 +112,24 @@ sentryhive scan [OPTIONS]
   --external-id TEXT      External ID for role assumption
   --profile TEXT          AWS profile name
   --regions TEXT          Comma-separated regions (eu-central-1,us-east-1)
-  --scanners TEXT         Scanners to run (default: prowler,cloudsplaining)
-  --eks-cluster TEXT      Force a specific EKS cluster for hardeneks
-  --no-auto-eks           Disable EKS auto-detection
+  --scanners TEXT         Account scanners (default: prowler,cloudsplaining)
+  --eks                   Run EKS hardening (opt-in; needs in-cluster access)
+  --clusters TEXT         EKS clusters to target (default: all detected)
+  --kubeconfig PATH       kubeconfig for EKS access
   --source-dir TEXT       Directory ASH scans (default: CWD)
   --client-name TEXT      Client/engagement name for the report header
   --logo PATH             Logo image embedded in the report header
+  --format TEXT           Output formats: html,md,json,pdf (default: html,md,json)
+  --pdf                   Shorthand to add PDF output
+  --pdf-engine TEXT       weasyprint (default) or chromium
   --out TEXT              Output directory (default: ./reports)
   --yes, -y               Skip confirmation prompt
   --fail-on TEXT          Exit non-zero if any finding >= severity (CI gate)
 ```
+
+> EKS hardening is a **separate, opt-in phase** — unlike the IAM-only scanners it
+> needs in-cluster RBAC access. The default run only *detects and notes* EKS
+> clusters. See [docs/eks-access.md](docs/eks-access.md).
 
 Exit codes: `0` success · `1` auth failure · `2` bad arguments · `3` `--fail-on` threshold breached.
 
@@ -124,6 +138,7 @@ Exit codes: `0` success · `1` auth failure · `2` bad arguments · `3` `--fail-
 Per scan:
 
 - **`report.html`** — self-contained, **client-branded** (`--client-name`, `--logo`), severity-colored, filterable. Up top: scan-metadata/evidence block (accounts, identity, SentryHive + scanner versions, timestamp), **compliance posture per framework**, and **IAM privilege-escalation highlights**. See [`examples/sample-report.html`](examples/sample-report.html).
+- **`report.pdf`** — the client deliverable: dated, page-numbered, branded, with a cover page and a scope & methodology page. Add with `--pdf`. Rendered locally via WeasyPrint (no browser, no network). See [`examples/sample-report.pdf`](examples/sample-report.pdf) and [docs/reports.md](docs/reports.md).
 - **`report.md`** — for PR comments and CI artifacts.
 - **`findings.json`** — machine-readable, the unified schema, for piping elsewhere.
 
@@ -162,18 +177,39 @@ A reusable workflow lives at [`.github/workflows/scan-example.yml`](.github/work
 ```
 AWS creds → CLI → auth (STS verify) → [Prowler│Cloudsplaining│hardeneks│ASH]
                                               ↓ each → normalized findings
-                                       Aggregator (dedup + rank)
+                                       Aggregator (dedup + rank + posture)
                                               ↓
-                                  Report generator (HTML + MD + JSON)
+                              Report generator (HTML + PDF + MD + JSON)
 ```
 
-Each scanner is wrapped behind a common `Scanner.run()` interface, so adding a fifth tool is one wrapper module + one registry entry.
+Each scanner is wrapped behind a common `Scanner.run()` interface, so adding a fifth tool is one wrapper module + one registry entry. Full write-up in [docs/architecture.md](docs/architecture.md).
 
-## Development
+## Documentation
+
+Full docs live in [`docs/`](docs/index.md):
+
+| Start here | Auth & trust | Reference |
+|------------|--------------|-----------|
+| [Getting started](docs/getting-started.md) | [Authentication](docs/authentication.md) | [Usage & flags](docs/usage.md) |
+| [Installation](docs/installation.md) | [IAM permissions](docs/iam-permissions.md) | [Scanners](docs/scanners.md) |
+| [FAQ](docs/faq.md) | [EKS access](docs/eks-access.md) | [Reports](docs/reports.md) |
+| [Troubleshooting](docs/troubleshooting.md) | [CI/CD](docs/ci-cd.md) | [Configuration](docs/configuration.md) |
+
+## Security & trust
+
+- **All scanning is read-only.** SentryHive performs no write, modify, or delete actions.
+- **No data leaves your machine** — scanning *and* PDF generation run fully locally.
+- Ships least-privilege IAM ([CloudFormation](iam/audit-role.cfn.yaml) / [Terraform](iam/audit-role.tf)) for clients to deploy.
+
+Report a vulnerability via [SECURITY.md](SECURITY.md) (private disclosure — not a public issue).
+
+## Contributing
+
+Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) (dev setup, how to add a scanner, PR checklist) and our [Code of Conduct](CODE_OF_CONDUCT.md). Changes are logged in [CHANGELOG.md](CHANGELOG.md).
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev,pdf]"
 ruff check .
 pytest
 ```

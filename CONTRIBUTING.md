@@ -28,6 +28,22 @@ You should not need to touch the aggregator, report layer, or CLI.
 - Code style is enforced by `ruff` (config in `pyproject.toml`). Run `ruff check --fix .`.
 - Keep one scanner failure from aborting a run — exceptions in `_scan` are caught by the base class and surfaced as an `error` status. Don't swallow them yourself.
 - New findings must populate `severity`, `tool`, `check`, and `resource` so dedup and ranking work.
+- **Docs change in the same PR as the code.** If you change a flag or behavior, update the relevant `docs/` page and the README.
+
+## Commit & PR conventions
+
+- Write imperative commit subjects ("Add hardeneks preflight check"), present tense.
+- Each PR should be focused and reviewable. Fill in the PR template checklist.
+- **Add a `CHANGELOG.md` entry** under `## [Unreleased]` for any user-facing change,
+  in the right group (`Added`/`Changed`/`Deprecated`/`Removed`/`Fixed`/`Security`).
+  Flag permission/credential/scanner-behavior changes under `Security`.
+
+## PR checklist
+
+- [ ] Tests added/updated and `pytest` passes
+- [ ] `ruff check .` is clean
+- [ ] Docs updated (README + relevant `docs/` page)
+- [ ] `CHANGELOG.md` `[Unreleased]` entry added
 
 ## Tests
 
@@ -36,8 +52,10 @@ pytest                      # all tests
 pytest --cov=sentryhive     # with coverage
 ```
 
-CI runs lint, tests, and a Docker build on every PR.
+CI runs lint, tests, a Docker build, and a docs link-check on every PR.
 
 ## Reporting bugs / features
 
-Open an issue with repro steps. For security issues, see [SECURITY.md](SECURITY.md) — do **not** open a public issue.
+Open an issue with the bug-report or feature-request template. For security issues,
+see [SECURITY.md](SECURITY.md) — do **not** open a public issue. Be a good community
+member: see the [Code of Conduct](CODE_OF_CONDUCT.md).
