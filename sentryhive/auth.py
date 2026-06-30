@@ -116,3 +116,39 @@ def build_context(
     identity = verify_identity(session)
     resolved_regions = regions or default_regions(session)
     return AwsContext(session=session, identity=identity, regions=resolved_regions)
+
+
+def build_contexts(
+    profile: str | None = None,
+    role_arns: list[str] | None = None,
+    external_id: str | None = None,
+    regions: list[str] | None = None,
+) -> list[AwsContext]:
+    """Resolve one AwsContext per target account.
+
+    Consultants scan several client accounts in one run by passing multiple role
+    ARNs. With no role ARN, this yields a single context from the profile/env keys.
+    """
+    if not role_arns:
+        return [build_context(profile=profile, external_id=external_id, regions=regions)]
+    return [
+        build_context(profile=profile, role_arn=arn, external_id=external_id, regions=regions)
+        for arn in role_arns
+    ]
+
+
+def discover_eks_clusters(ctx: AwsContext) -> list[str]:
+    """List EKS cluster names across the context's regions (best-effort).
+
+    Used to auto-enable the hardeneks scanner only when a client actually runs EKS.
+    Failures (no EKS perms, no clusters) return an empty list rather than raising.
+    """
+    clusters: list[str] = []
+    for region in ctx.regions:
+        try:
+            paginator = ctx.client("eks", region=region).get_paginator("list_clusters")
+            for page in paginator.paginate():
+                clusters.extend(page.get("clusters", []))
+        except (ClientError, BotoCoreError):
+            continue
+    return sorted(set(clusters))

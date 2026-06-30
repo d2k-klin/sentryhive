@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SentryHive Security Report — {{ r.account_id or "scan" }}</title>
+<title>SentryHive Security Report — {{ r.client_name or r.account_id or "scan" }}</title>
 <style>
   :root { --bg:#0f172a; --card:#1e293b; --ink:#e2e8f0; --muted:#94a3b8; --line:#334155; }
   * { box-sizing: border-box; }
@@ -40,16 +40,32 @@
   .pill { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:1px 7px; }
   footer { color:var(--muted); font-size:12px; text-align:center; padding:24px; }
   a { color:#60a5fa; }
+  .brand { display:flex; align-items:center; gap:16px; }
+  .brand img { max-height:48px; max-width:180px; border-radius:6px; background:#fff; padding:4px; }
+  .client { font-size:13px; color:#fbbf24; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+  .bar { height:10px; border-radius:999px; background:#0b1220; overflow:hidden; min-width:120px; }
+  .bar > span { display:block; height:100%; background:#22c55e; }
 </style>
 </head>
 <body>
 <header>
-  <h1><span class="hex">⬡</span> SentryHive Security Report</h1>
+  <div class="brand">
+    {% if r.logo_data_uri %}<img src="{{ r.logo_data_uri }}" alt="client logo">{% endif %}
+    <div>
+      {% if r.client_name %}<div class="client">{{ r.client_name }}</div>{% endif %}
+      <h1><span class="hex">⬡</span> SentryHive Security Report</h1>
+    </div>
+  </div>
   <div class="meta">
+    {% if r.is_rollup %}
+    <span>Accounts <code>{{ r.accounts | join(", ") }}</code></span>
+    {% else %}
     <span>Account <code>{{ r.account_id or "n/a" }}</code></span>
     <span>Identity <code>{{ r.identity_arn or "n/a" }}</code></span>
+    {% endif %}
     <span>Regions <code>{{ r.regions | join(", ") or "n/a" }}</code></span>
     <span>Generated <code>{{ r.generated_at }}</code></span>
+    <span>SentryHive <code>v{{ r.tool_version }}</code></span>
   </div>
 </header>
 <main>
@@ -63,14 +79,57 @@
     <div class="card"><div class="n">{{ r.total }}</div><div class="l">Total</div></div>
   </div>
 
+  {% if r.compliance %}
+  <section>
+    <h2>Compliance posture</h2>
+    <table>
+      <thead><tr><th>Framework</th><th>Pass</th><th>Fail</th><th style="width:40%">% pass</th></tr></thead>
+      <tbody>
+      {% for c in r.compliance %}
+        <tr>
+          <td><strong>{{ c.framework }}</strong></td>
+          <td>{{ c.passed }}</td>
+          <td>{{ c.failed }}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div class="bar"><span style="width:{{ c.pass_pct }}%"></span></div>
+              <span>{{ c.pass_pct }}%</span>
+            </div>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  {% if r.iam_highlights %}
+  <section>
+    <h2>IAM privilege-escalation highlights</h2>
+    <p style="color:var(--muted);margin-top:-6px">How an attacker could escalate or take over within this account.</p>
+    <table>
+      <thead><tr><th>Severity</th><th>Resource</th><th>Finding</th></tr></thead>
+      <tbody>
+      {% for f in r.iam_highlights %}
+        <tr>
+          <td><span class="sev" style="background:{{ severity_colors[f.severity.label] }}">{{ f.severity.label }}</span></td>
+          <td><code>{{ f.resource }}</code></td>
+          <td>{{ f.title or f.check }}{% if f.description %}<br><span style="color:var(--muted)">{{ f.description }}</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
   <section>
     <h2>Scanners</h2>
     <table>
-      <thead><tr><th>Scanner</th><th>Status</th><th>Findings</th><th>Notes</th></tr></thead>
+      <thead><tr><th>Scanner</th><th>Status</th><th>Findings</th><th>Version</th><th>Notes</th></tr></thead>
       <tbody>
       {% for s in r.scanners %}
         <tr><td>{{ s.name }}</td><td><span class="pill">{{ s.status }}</span></td>
-            <td>{{ s.findings }}</td><td>{{ s.message }}</td></tr>
+            <td>{{ s.findings }}</td><td><span class="pill">{{ s.version or "—" }}</span></td><td>{{ s.message }}</td></tr>
       {% endfor %}
       </tbody>
     </table>
@@ -128,12 +187,13 @@
           <td>
             <strong>{{ f.title or f.check }}</strong>
             <span class="pill">{{ f.status }}</span>
+            {% if r.is_rollup and f.account_id %}<span class="pill">acct {{ f.account_id }}</span>{% endif %}
+            {% for c in f.compliance_refs %}{% if not c.startswith("flagged-by") %}<span class="pill">{{ c }}</span>{% endif %}{% endfor %}
             <details>
               <summary>details</summary>
               {% if f.description %}<p>{{ f.description }}</p>{% endif %}
               {% if f.remediation %}<p class="remediation">→ {{ f.remediation }}</p>{% endif %}
-              {% if f.compliance_refs %}<p>{% for c in f.compliance_refs %}<span class="pill">{{ c }}</span> {% endfor %}</p>{% endif %}
-              <p><span class="pill">id: {{ f.id }}</span> <span class="pill">check: {{ f.check }}</span></p>
+              <p><span class="pill">id: {{ f.id }}</span> <span class="pill">check: {{ f.check }}</span> <span class="pill">source: {{ f.tool }}</span></p>
             </details>
           </td>
         </tr>

@@ -54,6 +54,7 @@ class ScanResult:
     findings: list[Finding] = field(default_factory=list)
     message: str = ""
     raw: dict | list | None = None
+    version: str = ""  # version of the underlying tool, for evidence/reproducibility
 
 
 class Scanner:
@@ -64,11 +65,25 @@ class Scanner:
     #: True if this scanner inspects a live AWS account; False if it scans local files.
     requires_aws: bool = True
 
+    #: Flag passed to the binary to print its version (override if non-standard).
+    version_flag: str = "--version"
+
     def is_available(self) -> bool:
         """Whether the underlying tool can be invoked."""
         if not self.binary:
             return True
         return shutil.which(self.binary) is not None
+
+    def version(self) -> str:
+        """Best-effort version string of the underlying tool (for evidence/repro)."""
+        if not self.binary or not self.is_available():
+            return ""
+        try:
+            proc = self._exec([self.binary, self.version_flag], timeout=30)
+        except Exception:  # noqa: BLE001
+            return ""
+        out = (proc.stdout or proc.stderr or "").strip().splitlines()
+        return out[0].strip() if out else ""
 
     def run(self, ctx: AwsContext | None, workdir: str) -> ScanResult:
         if not self.is_available():
@@ -77,12 +92,15 @@ class Scanner:
                 status=ScanStatus.SKIPPED,
                 message=f"'{self.binary}' not found on PATH — install it or use the Docker image.",
             )
+        version = self.version()
         try:
-            return self._scan(ctx, workdir)
+            result = self._scan(ctx, workdir)
         except subprocess.TimeoutExpired:
-            return ScanResult(self.name, ScanStatus.ERROR, message="scanner timed out")
+            return ScanResult(self.name, ScanStatus.ERROR, message="scanner timed out", version=version)
         except Exception as exc:  # noqa: BLE001 - one tool failing must not abort the run
-            return ScanResult(self.name, ScanStatus.ERROR, message=str(exc))
+            return ScanResult(self.name, ScanStatus.ERROR, message=str(exc), version=version)
+        result.version = result.version or version
+        return result
 
     # --- subclass hook ---------------------------------------------------
     def _scan(self, ctx: AwsContext | None, workdir: str) -> ScanResult:
