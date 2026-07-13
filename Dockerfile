@@ -1,6 +1,14 @@
 # SentryHive — single image bundling all scanners so users install nothing but Docker.
 FROM python:3.12-slim
 
+# Pinned tool versions — bumped weekly by .github/workflows/tool-watch.yml.
+ARG PROWLER_VERSION=5.33.1
+ARG CLOUDSPLAINING_VERSION=0.8.2
+ARG HARDENEKS_VERSION=1.1.0
+ARG ASH_VERSION=11.0.2
+ARG AWSCLI_VERSION=2.35.21
+ARG KUBECTL_VERSION=v1.36.2
+
 LABEL org.opencontainers.image.title="SentryHive" \
       org.opencontainers.image.description="AWS security scanning toolkit — one image, one report." \
       org.opencontainers.image.licenses="Apache-2.0" \
@@ -22,14 +30,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # AWS CLI v2 (needed by hardeneks for `aws eks update-kubeconfig`).
 RUN ARCH="$(uname -m)" \
-    && curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}.zip" -o /tmp/awscliv2.zip \
+    && curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}-${AWSCLI_VERSION}.zip" -o /tmp/awscliv2.zip \
     && unzip -q /tmp/awscliv2.zip -d /tmp \
     && /tmp/aws/install \
     && rm -rf /tmp/aws /tmp/awscliv2.zip
 
 # kubectl (hardeneks talks to the cluster API).
 RUN KARCH="$(dpkg --print-architecture)" \
-    && curl -sSL "https://dl.k8s.io/release/$(curl -sSL https://dl.k8s.io/release/stable.txt)/bin/linux/${KARCH}/kubectl" \
+    && curl -sSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${KARCH}/kubectl" \
        -o /usr/local/bin/kubectl \
     && chmod +x /usr/local/bin/kubectl
 
@@ -38,10 +46,10 @@ RUN KARCH="$(dpkg --print-architecture)" \
 RUN python -m venv /opt/scanner-venv \
     && /opt/scanner-venv/bin/pip install --upgrade pip "setuptools<81" \
     && /opt/scanner-venv/bin/pip install \
-        "prowler" \
-        "cloudsplaining" \
-        "hardeneks" \
-        "automated-security-helper"
+        "prowler==${PROWLER_VERSION}" \
+        "cloudsplaining==${CLOUDSPLAINING_VERSION}" \
+        "hardeneks==${HARDENEKS_VERSION}" \
+        "automated-security-helper==${ASH_VERSION}"
 
 RUN python -m venv /opt/sentryhive-venv \
     && /opt/sentryhive-venv/bin/pip install --upgrade pip

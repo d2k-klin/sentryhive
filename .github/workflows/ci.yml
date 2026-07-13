@@ -61,10 +61,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e "."
       - name: Install bundled scanners
-        run: pip install prowler cloudsplaining hardeneks
+        run: |
+          eval "$(grep -E '^ARG (PROWLER|CLOUDSPLAINING|HARDENEKS)_VERSION=' Dockerfile | sed 's/^ARG //')"
+          pip install "prowler==$PROWLER_VERSION" "cloudsplaining==$CLOUDSPLAINING_VERSION" "hardeneks==$HARDENEKS_VERSION"
       - name: Install kubectl
         run: |
-          curl -sSL "https://dl.k8s.io/release/$(curl -sSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" \
+          KUBECTL_VERSION="$(grep -E '^ARG KUBECTL_VERSION=' Dockerfile | cut -d= -f2)"
+          curl -sSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" \
             -o /usr/local/bin/kubectl && chmod +x /usr/local/bin/kubectl
       - name: Verify scanner versions
         run: ./scripts/verify-scanners.sh
