@@ -3,7 +3,7 @@ FROM python:3.12-slim
 
 # Pinned tool versions — bumped weekly by .github/workflows/tool-watch.yml.
 ARG PROWLER_VERSION=5.33.1
-ARG CLOUDSPLAINING_VERSION=0.8.2
+ARG CLOUDSPLAINING_VERSION=0.9.1
 ARG HARDENEKS_VERSION=1.1.0
 ARG ASH_VERSION=11.0.2
 ARG AWSCLI_VERSION=2.35.21
