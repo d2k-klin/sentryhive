@@ -10,6 +10,8 @@ change findings output.
 
 ## [Unreleased]
 
+## [0.0.3] - 2026-07-24
+
 ### Added
 - **CloudFox 2.0.5** as a core AWS attack-surface scanner, using focused modules
   that avoid secret/loot collection and distinguish confirmed risks from observations.
@@ -66,6 +68,7 @@ Initial release — a working v1 for security consultants and auditors.
 - Scanning and PDF generation run fully locally — no scan data leaves the operator's machine.
 - External ID is supported for cross-account role assumption.
 
-[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v0.0.2...HEAD
+[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v0.0.3...HEAD
+[0.0.3]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.3
 [0.0.2]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.2
 [0.0.1]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.1
