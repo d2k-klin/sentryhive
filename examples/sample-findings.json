@@ -7,27 +7,38 @@
     "us-east-1",
     "eu-central-1"
   ],
-  "generated_at": "2026-06-30 12:00:00 UTC",
-  "sentryhive_version": "0.1.0",
+  "generated_at": "2026-07-24 00:00:00 UTC",
+  "sentryhive_version": "0.0.2",
   "summary": {
-    "total": 9,
+    "total": 11,
+    "failing": 8,
+    "scan_complete": true,
     "by_severity": {
       "Critical": 2,
-      "High": 4,
-      "Medium": 1,
+      "High": 5,
+      "Medium": 2,
       "Low": 0,
       "Info": 2
     },
+    "failing_by_severity": {
+      "Critical": 2,
+      "High": 5,
+      "Medium": 1,
+      "Low": 0,
+      "Info": 0
+    },
     "by_status": {
-      "fail": 7,
+      "fail": 8,
       "pass": 2,
-      "info": 0
+      "info": 1
     },
     "services": [
+      "apigateway",
       "cloudtrail",
       "ec2",
       "eks",
       "iam",
+      "kubernetes",
       "rds",
       "s3"
     ],
@@ -35,9 +46,9 @@
       {
         "framework": "CIS",
         "passed": 2,
-        "failed": 5,
-        "pass_pct": 29,
-        "total": 7
+        "failed": 6,
+        "pass_pct": 25,
+        "total": 8
       },
       {
         "framework": "PCI-DSS",
@@ -68,21 +79,35 @@
       "status": "ok",
       "findings": 6,
       "message": "",
-      "version": "Prowler 4.5.0"
+      "version": "Prowler 5.36.0"
     },
     {
       "name": "cloudsplaining",
       "status": "ok",
       "findings": 2,
       "message": "",
-      "version": "cloudsplaining 0.7.0"
+      "version": "cloudsplaining 0.8.2"
+    },
+    {
+      "name": "cloudfox",
+      "status": "ok",
+      "findings": 1,
+      "message": "",
+      "version": "cloudfox version 2.0.5"
     },
     {
       "name": "hardeneks",
       "status": "ok",
       "findings": 1,
       "message": "",
-      "version": "hardeneks 0.12.0"
+      "version": "hardeneks 1.1.1"
+    },
+    {
+      "name": "kubescape",
+      "status": "ok",
+      "findings": 1,
+      "message": "",
+      "version": "v4.0.11"
     }
   ],
   "findings": [
@@ -181,6 +206,24 @@
       "severity_rank": 3
     },
     {
+      "tool": "kubescape",
+      "check": "C-0013",
+      "title": "Workloads should run as non-root",
+      "description": "Kubescape found two affected workload resources in the selected cluster.",
+      "severity": "High",
+      "resource": "prod-eks/2 affected resources",
+      "service": "kubernetes",
+      "region": "us-east-1",
+      "status": "fail",
+      "remediation": "Set runAsNonRoot and a non-zero runAsUser in the pod security context.",
+      "compliance_refs": [
+        "CIS:5.2.6"
+      ],
+      "account_id": "123456789012",
+      "id": "434f18b66dfa",
+      "severity_rank": 3
+    },
+    {
       "tool": "prowler",
       "check": "ec2_sg_open_ssh",
       "title": "Security group exposes SSH to 0.0.0.0/0",
@@ -215,6 +258,22 @@
       ],
       "account_id": "",
       "id": "41a7cfd5da13",
+      "severity_rank": 2
+    },
+    {
+      "tool": "cloudfox",
+      "check": "public_endpoint",
+      "title": "Public workload endpoint observed",
+      "description": "A public hostname was enumerated and requires human validation of intended exposure and authentication.",
+      "severity": "Medium",
+      "resource": "https://api.example.invalid",
+      "service": "apigateway",
+      "region": "us-east-1",
+      "status": "info",
+      "remediation": "Confirm the endpoint is intended, authenticated, and protected by rate limits and logging.",
+      "compliance_refs": [],
+      "account_id": "123456789012",
+      "id": "878c4c7dff48",
       "severity_rank": 2
     },
     {

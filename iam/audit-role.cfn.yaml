@@ -55,6 +55,17 @@ Resources:
                   - iam:GenerateCredentialReport
                   - iam:GetAccountAuthorizationDetails
                   - iam:GetCredentialReport
+                  - iam:SimulatePrincipalPolicy
+                Resource: "*"
+              - Sid: SentryHiveCloudFoxCoverage
+                Effect: Allow
+                Action:
+                  - apprunner:DescribeService
+                  - apprunner:ListServices
+                  - grafana:DescribeWorkspace
+                  - grafana:ListWorkspaces
+                  - lambda:GetFunctionUrlConfig
+                  - lightsail:GetContainerServices
                 Resource: "*"
               - Sid: SentryHiveEksReadOnly
                 Effect: Allow

@@ -16,7 +16,7 @@ how-to guides, reference, and explanation are kept separate.
 - [Usage](usage.md) — common tasks + the full flag reference.
 - [Authentication](authentication.md) — profiles, static keys, assume-role, external ID.
 - [IAM permissions](iam-permissions.md) — least-privilege policy + client onboarding.
-- [EKS access](eks-access.md) — granting in-cluster access for EKS hardening.
+- [EKS access](eks-access.md) — choosing Kubernetes scope and granting cluster access.
 - [CI/CD](ci-cd.md) — run SentryHive as a pipeline security gate.
 
 ## Reference (lookup)

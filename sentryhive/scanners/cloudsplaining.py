@@ -36,8 +36,7 @@ class CloudsplainingScanner(Scanner):
                 self.name,
                 ScanStatus.ERROR,
                 message=(
-                    f"cloudsplaining download produced no authorization JSON "
-                    f"(exit {dl.returncode}): {dl.stderr[-400:]}"
+                    f"cloudsplaining download produced no authorization JSON (exit {dl.returncode}): {dl.stderr[-400:]}"
                 ),
             )
 

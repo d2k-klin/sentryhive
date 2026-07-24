@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
 
-from jinja2 import Environment, PackageLoader, select_autoescape
+from jinja2 import Environment, PackageLoader
 
 from sentryhive.aggregate import Report
 
@@ -36,13 +37,28 @@ class PdfError(RuntimeError):
 def _env() -> Environment:
     env = Environment(
         loader=PackageLoader("sentryhive.report", "templates"),
-        autoescape=select_autoescape(["html", "xml"]),
+        autoescape=lambda name: bool(name and name.endswith(".html.j2")),
         trim_blocks=True,
         lstrip_blocks=True,
     )
     env.globals["severity_order"] = _SEVERITY_ORDER
     env.globals["severity_colors"] = _SEVERITY_COLORS
+    env.filters["plain_text"] = _plain_text
     return env
+
+
+def _plain_text(value: str) -> str:
+    """Remove common Markdown decoration for compact HTML/PDF prose.
+
+    Jinja escapes the returned text, so scanner-controlled strings remain text and
+    cannot become executable report markup.
+    """
+    text = str(value or "")
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 (\2)", text)
+    text = re.sub(r"(?m)^\s{0,3}(?:[-*+]|\d+\.)\s+", "• ", text)
+    text = re.sub(r"(?m)^\s{0,3}#{1,6}\s*", "", text)
+    text = re.sub(r"[*_`~]", "", text)
+    return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
 def render_html(report: Report) -> str:
@@ -50,7 +66,7 @@ def render_html(report: Report) -> str:
 
 
 def render_md(report: Report) -> str:
-    return _env().get_template("report.md.j2").render(r=report)
+    return _env().get_template("report.md.j2").render(r=report) + "\n"
 
 
 def write_reports(

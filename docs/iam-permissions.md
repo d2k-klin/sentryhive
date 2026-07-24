@@ -6,20 +6,24 @@ before pointing the tool at any account.
 
 ## What SentryHive needs
 
-Account-level scanning (Prowler + Cloudsplaining) is covered by the AWS-managed
+Account-level scanning (Prowler + Cloudsplaining + CloudFox) is covered by the AWS-managed
 **`SecurityAudit`** and **`ViewOnlyAccess`** policies, plus a handful of extra
 read-only actions:
 
 - `sts:GetCallerIdentity` — identity verification.
 - `iam:GetAccountAuthorizationDetails`, `iam:GenerateCredentialReport`,
   `iam:GetCredentialReport` — IAM policy analysis (Cloudsplaining) and IAM checks.
+- `iam:SimulatePrincipalPolicy` — lets CloudFox validate whether workload roles are
+  administrators when no Principal Mapper data is present.
+- Small read-only gaps for App Runner, Grafana, Lambda function URLs, and Lightsail
+  containers — CloudFox workload/endpoint coverage not included in the managed policies.
 - `eks:ListClusters` / `eks:DescribeCluster` (+ nodegroup/addon list/describe) — EKS
   detection and metadata.
 
 No write, modify, or delete actions are requested. The full policy is shipped at
 [`iam/least-privilege-policy.json`](../iam/least-privilege-policy.json).
 
-> **EKS hardening (`--eks`) needs more.** Reading *inside* a cluster requires an extra
+> **Kubernetes assessment (`--kubernetes`) needs more.** Reading *inside* a cluster requires an extra
 > in-cluster RBAC grant per cluster — see [EKS access](eks-access.md). Account-level
 > scanning does not.
 
@@ -67,5 +71,7 @@ aws sts assume-role --role-arn <role-arn> --role-session-name test \
   --external-id <shared-secret>
 ```
 
-If that returns credentials, SentryHive will work. If it fails, see
+That proves role assumption only. Then run `aws sts get-caller-identity` with the
+returned credentials and a narrow scanner dry run; `AccessDenied` messages indicate
+missing read permissions rather than an authentication failure. See
 [Troubleshooting](troubleshooting.md).

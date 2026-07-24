@@ -4,7 +4,7 @@ Every scanner wraps one underlying OSS tool behind the same contract:
 
     scanner.run(ctx, workdir) -> ScanResult   # normalized findings + metadata
 
-Adding a 5th tool is just a new subclass — the orchestrator, normalizer schema,
+Adding a tool is just a new subclass — the orchestrator, normalizer schema,
 aggregator and report layer never change.
 """
 

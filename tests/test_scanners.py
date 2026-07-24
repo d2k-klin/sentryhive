@@ -15,8 +15,15 @@ class DummyScanner(Scanner):
         raise NotImplementedError
 
 
-def test_registry_has_all_four():
-    assert set(ALL_SCANNERS) == {"prowler", "cloudsplaining", "hardeneks", "ash"}
+def test_registry_has_all_scanners():
+    assert set(ALL_SCANNERS) == {
+        "prowler",
+        "cloudsplaining",
+        "cloudfox",
+        "hardeneks",
+        "kubescape",
+        "ash",
+    }
 
 
 def test_build_unknown_scanner_raises():

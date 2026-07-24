@@ -1,103 +1,180 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SentryHive Security Report — {{ r.client_name or r.account_id or "scan" }}</title>
 <style>
-  :root { --bg:#0f172a; --card:#1e293b; --ink:#e2e8f0; --muted:#94a3b8; --line:#334155; }
-  * { box-sizing: border-box; }
-  body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-         background:var(--bg); color:var(--ink); }
-  header { padding:28px 32px; border-bottom:1px solid var(--line);
-           background:linear-gradient(135deg,#1e293b,#0f172a); }
-  h1 { margin:0 0 4px; font-size:22px; }
-  h1 .hex { color:#fbbf24; }
-  .meta { color:var(--muted); font-size:13px; display:flex; flex-wrap:wrap; gap:16px; margin-top:8px; }
-  .meta code { color:var(--ink); }
-  main { padding:24px 32px; max-width:1200px; margin:0 auto; }
-  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px; margin-bottom:24px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
-  .card .n { font-size:26px; font-weight:700; }
-  .card .l { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
-  .sev { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700;
-         color:#fff; text-transform:uppercase; letter-spacing:.03em; }
-  section { background:var(--card); border:1px solid var(--line); border-radius:12px;
-            padding:18px 20px; margin-bottom:20px; }
-  section.alert { border-color:#f59e0b; background:#2b2111; }
-  section h2 { margin:0 0 14px; font-size:16px; }
-  table { width:100%; border-collapse:collapse; }
-  th,td { text-align:left; padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
-  tr:last-child td { border-bottom:none; }
-  code { background:#0b1220; padding:1px 6px; border-radius:5px; font-size:12px; word-break:break-all; }
-  .controls { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
-  .controls input, .controls select { background:#0b1220; color:var(--ink); border:1px solid var(--line);
-            border-radius:8px; padding:8px 10px; font-size:13px; }
-  .controls input { flex:1; min-width:200px; }
-  details { margin-top:6px; }
-  summary { cursor:pointer; color:var(--muted); }
-  .remediation { color:#86efac; }
-  .pill { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:1px 7px; }
-  footer { color:var(--muted); font-size:12px; text-align:center; padding:24px; }
-  a { color:#60a5fa; }
-  .brand { display:flex; align-items:center; gap:16px; }
-  .brand img { max-height:48px; max-width:180px; border-radius:6px; background:#fff; padding:4px; }
-  .client { font-size:13px; color:#fbbf24; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
-  .bar { height:10px; border-radius:999px; background:#0b1220; overflow:hidden; min-width:120px; }
-  .bar > span { display:block; height:100%; background:#22c55e; }
-
-  /* Cover/scope/TOC are for PDF only; hidden in the browser. */
-  @media screen { .print-only { display:none; } }
-
-  /* PDF layout (WeasyPrint / Chromium honor @media print). Paper-friendly: light
-     theme, page breaks between sections, repeating footer with page numbers. */
+  :root {
+    --paper:#f4f1ea; --surface:#fffdfa; --ink:#1f2529; --muted:#667078;
+    --line:#d8d3c8; --accent:#b45309; --accent-soft:#fff3df; --good:#24754a;
+  }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body {
+    margin:0; color:var(--ink); background:var(--paper);
+    font:14px/1.55 Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+  code {
+    color:inherit; background:#efebe3; border-radius:3px; padding:1px 4px;
+    font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;
+    overflow-wrap:anywhere; word-break:break-word;
+  }
+  a { color:#95500a; }
+  header {
+    color:#fff; background:#20282d; border-bottom:4px solid var(--accent);
+    padding:34px max(28px,calc((100vw - 1160px)/2));
+  }
+  .brand { display:flex; align-items:center; gap:18px; }
+  .brand img { max-height:52px; max-width:180px; background:#fff; padding:5px; }
+  .eyebrow { color:#f7c47e; font-size:11px; font-weight:750; letter-spacing:.15em; text-transform:uppercase; }
+  h1 { margin:2px 0 0; font-family:Georgia,"Times New Roman",serif; font-size:31px; line-height:1.15; }
+  h2 { margin:0 0 14px; font-family:Georgia,"Times New Roman",serif; font-size:21px; line-height:1.25; }
+  h3 { margin:0 0 6px; font-size:14px; }
+  .meta { display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:16px; color:#cbd1d5; font-size:12px; }
+  .meta code { color:#fff; background:#303b42; }
+  main { max-width:1160px; margin:0 auto; padding:28px; }
+  section {
+    margin:0 0 18px; padding:20px 22px; background:var(--surface);
+    border:1px solid var(--line); border-radius:6px;
+  }
+  .lede { max-width:850px; color:#4f5960; font-size:15px; }
+  .metrics {
+    display:grid; grid-template-columns:repeat(7,minmax(92px,1fr));
+    border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-bottom:18px;
+  }
+  .metric { min-height:88px; padding:14px 16px; background:var(--surface); border-right:1px solid var(--line); }
+  .metric:last-child { border:0; }
+  .metric strong { display:block; font-family:Georgia,"Times New Roman",serif; font-size:28px; line-height:1.2; }
+  .metric span { color:var(--muted); font-size:10px; font-weight:750; letter-spacing:.08em; text-transform:uppercase; }
+  .alert { border-left:5px solid #c2410c; background:#fff7ed; }
+  .note { border-left:5px solid #3f697d; background:#f1f7f8; }
+  .section-note { color:var(--muted); margin:-8px 0 14px; }
+  table { width:100%; border-collapse:collapse; table-layout:fixed; }
+  th,td { padding:9px 8px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; overflow-wrap:anywhere; }
+  th { color:var(--muted); font-size:10px; letter-spacing:.08em; text-transform:uppercase; }
+  tr:last-child td { border-bottom:0; }
+  .sev {
+    display:inline-block; min-width:58px; padding:2px 7px; border-radius:3px;
+    color:#fff; font-size:10px; font-weight:800; letter-spacing:.04em; text-align:center; text-transform:uppercase;
+  }
+  .tag {
+    display:inline-block; margin:2px 2px 0 0; padding:1px 6px; color:#5d666c;
+    border:1px solid #cbc6bb; border-radius:999px; font-size:10px; line-height:1.55;
+  }
+  .status-fail { color:#a42b1e; border-color:#d9a59d; }
+  .status-pass { color:var(--good); border-color:#9fcab2; }
+  .status-info { color:#386779; border-color:#a5c3ce; }
+  .plain { white-space:pre-line; }
+  .remediation { color:#236642; }
+  .risk-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .risk {
+    padding:14px; border:1px solid var(--line); border-left:4px solid var(--accent); background:#fff;
+    min-width:0; overflow-wrap:anywhere; break-inside:avoid;
+  }
+  .risk-head { display:flex; align-items:flex-start; gap:8px; margin-bottom:6px; }
+  .risk p { margin:6px 0 0; color:#4f5960; }
+  .controls {
+    position:sticky; top:0; z-index:2; display:grid; grid-template-columns:2fr repeat(3,1fr) auto;
+    gap:8px; margin:0 -6px 14px; padding:10px 6px; background:rgba(255,253,250,.96);
+    border-bottom:1px solid var(--line); backdrop-filter:blur(8px);
+  }
+  .controls input,.controls select {
+    min-width:0; padding:8px 9px; color:var(--ink); background:#fff;
+    border:1px solid #bdb7aa; border-radius:4px; font:inherit;
+  }
+  .visible-count { align-self:center; color:var(--muted); font-size:12px; white-space:nowrap; }
+  details { margin-top:5px; }
+  summary { color:#7b470f; cursor:pointer; user-select:none; }
+  details p { margin:7px 0; }
+  .bar { display:flex; align-items:center; gap:8px; }
+  .track { width:100%; height:7px; overflow:hidden; background:#e8e3da; border-radius:99px; }
+  .track span { display:block; height:100%; background:var(--good); }
+  footer { padding:16px 28px 32px; color:var(--muted); text-align:center; font-size:11px; }
+  .empty { padding:22px; color:var(--muted); text-align:center; }
+  @media (max-width:850px) {
+    .metrics { grid-template-columns:repeat(2,1fr); }
+    .metric { border-bottom:1px solid var(--line); }
+    .risk-list { grid-template-columns:1fr; }
+    .controls { grid-template-columns:1fr 1fr; position:static; }
+    .wide-table { display:block; overflow-x:auto; }
+    main { padding:18px 12px; }
+    header { padding:26px 18px; }
+  }
+  @media screen { .print-only { display:none !important; } }
   @media print {
     @page {
-      size: A4;
-      margin: 18mm 16mm 20mm 16mm;
+      size:A4; margin:16mm 14mm 18mm;
       @bottom-center {
-        content: "SentryHive — Confidential{% if r.client_name %} — {{ r.client_name }}{% endif %} — page " counter(page) " of " counter(pages);
-        font-size: 9px; color: #6b7280;
+        content:"OSS SentryHive by Mr. D — Confidential{% if r.client_name %} — {{ r.client_name }}{% endif %} — " counter(page) " / " counter(pages);
+        color:#70777b; font-size:8.5px;
       }
     }
-    @page :first { @bottom-center { content: none; } }
-    :root { --bg:#fff; --card:#fff; --ink:#111827; --muted:#6b7280; --line:#d1d5db; }
-    body { background:#fff; color:#111827; }
-    header { background:#fff; border-bottom:2px solid #111827; }
-    section.alert { background:#fffbeb; border-color:#f59e0b; }
-    code { background:#f3f4f6; }
-    .controls { display:none !important; }
-    header .meta { display:none !important; }
-    details { display:none !important; }       /* expand inline instead */
-    section { page-break-inside: avoid; }
-    h2 { page-break-after: avoid; }
-    .cover { page-break-after: always; text-align:center; padding-top:60mm; }
-    .cover img { max-height:80px; margin-bottom:24px; }
-    .cover .title { font-size:30px; font-weight:700; margin:12px 0; }
-    .cover .client { font-size:20px; color:#b45309; margin-bottom:36px; }
-    .cover .confidential { display:inline-block; border:2px solid #dc2626; color:#dc2626;
-      padding:4px 14px; border-radius:6px; font-weight:700; letter-spacing:.1em; }
-    .cover .meta-block { margin-top:40px; font-size:12px; color:#374151; line-height:1.9; }
-    .scope, .toc { page-break-after: always; }
-    .toc ul { list-style:none; padding:0; }
-    .toc a { text-decoration:none; color:#111827; }
-    .toc a::after { content: leader('.') target-counter(attr(href), page); }
+    @page:first { @bottom-center { content:none; } }
+    :root { --paper:#fff; --surface:#fff; --line:#cfd2d3; }
+    body { background:#fff; font-size:10px; line-height:1.38; }
+    .screen-only { display:none !important; }
+    .print-only { display:block; }
+    header { padding:12mm 0 6mm; color:#1f2529; background:#fff; border-bottom:2px solid #1f2529; }
+    header .meta { color:#596168; }
+    header .meta code { color:#1f2529; background:#f0f0ed; }
+    h1 { font-size:23px; }
+    h2 { font-size:16px; margin-bottom:8px; }
+    main { max-width:none; padding:8mm 0 0; }
+    section { padding:10px 12px; margin-bottom:8px; border-radius:0; }
+    section.keep,.risk { break-inside:avoid; }
+    .metrics { grid-template-columns:repeat(7,1fr); margin-bottom:8px; }
+    .metric { min-height:55px; padding:7px; }
+    .metric strong { font-size:19px; }
+    .metric span { font-size:7px; }
+    th,td { padding:5px 5px; font-size:8.5px; }
+    th { font-size:7px; }
+    code { font-size:8px; padding:0 2px; background:#f1f1ee; }
+    .sev { min-width:42px; padding:1px 4px; font-size:7px; }
+    .tag { font-size:7px; }
+    .risk-list { grid-template-columns:repeat(2,minmax(0,1fr)); gap:5px; }
+    .risk { padding:7px; }
+    .risk p { margin:3px 0 0; }
+    footer { display:none; }
+    .cover {
+      height:250mm; padding-top:48mm; text-align:center; page-break-after:always;
+    }
+    .cover img { max-height:22mm; max-width:65mm; margin-bottom:12mm; }
+    .cover .mark { color:var(--accent); font-size:18px; }
+    .cover .title { margin:3mm 0; font:700 28px/1.2 Georgia,serif; }
+    .cover .client-name { margin:5mm 0 18mm; color:var(--accent); font-size:17px; font-weight:700; }
+    .confidential {
+      display:inline-block; padding:2mm 6mm; color:#a42b1e; border:1.5px solid #a42b1e;
+      font-size:10px; font-weight:800; letter-spacing:.15em;
+    }
+    .cover-meta { margin-top:20mm; color:#596168; line-height:1.8; }
+    .scope { page-break-after:always; }
+    .scope .section-note { margin:4mm 0 0; }
+    .toc { page-break-after:always; }
+    .toc ul { padding:0; list-style:none; }
+    .toc a { color:#1f2529; text-decoration:none; }
+    .toc a::after { content:leader(".") target-counter(attr(href),page); }
+    .register { table-layout:fixed; }
+    .register col:nth-child(1) { width:11%; }
+    .register col:nth-child(2) { width:12%; }
+    .register col:nth-child(3) { width:29%; }
+    .register col:nth-child(4) { width:48%; }
+    .register tr { break-inside:avoid; }
   }
 </style>
 </head>
 <body>
-<!-- ---- PDF-only front matter ---- -->
 <div class="print-only cover">
-  {% if r.logo_data_uri %}<img src="{{ r.logo_data_uri }}" alt="logo">{% endif %}
-  <div class="title">⬡ SentryHive Security Report</div>
-  {% if r.client_name %}<div class="client">{{ r.client_name }}</div>{% endif %}
+  {% if r.logo_data_uri %}<img src="{{ r.logo_data_uri }}" alt="Client logo">{% endif %}
+  <div class="mark">⬡</div>
+  <div class="title">SentryHive Security Assessment</div>
+  {% if r.client_name %}<div class="client-name">{{ r.client_name }}</div>{% endif %}
   <div class="confidential">CONFIDENTIAL</div>
-  <div class="meta-block">
-    {% if r.is_rollup %}Accounts: {{ r.accounts | join(", ") }}<br>
-    {% else %}Account: {{ r.account_id or "n/a" }}<br>{% endif %}
-    Scan date: {{ r.generated_at }}<br>
-    SentryHive v{{ r.tool_version }}
+  <div class="cover-meta">
+    {% if r.is_rollup %}Accounts: {{ r.accounts | join(", ") }}{% else %}Account: {{ r.account_id or "n/a" }}{% endif %}<br>
+    Generated: {{ r.generated_at }}<br>
+    Generated by OSS SentryHive v{{ r.tool_version }}<br>
+    Created by Mr. D
   </div>
 </div>
 
@@ -106,48 +183,44 @@
   <table>
     <tbody>
       {% if r.is_rollup %}
-      <tr><th>Accounts scanned</th><td>{{ r.accounts | join(", ") }}</td></tr>
+      <tr><th>Accounts</th><td>{{ r.accounts | join(", ") or "n/a" }}</td></tr>
       {% else %}
-      <tr><th>Account scanned</th><td>{{ r.account_id or "n/a" }}</td></tr>
-      <tr><th>Auth identity</th><td><code>{{ r.identity_arn or "n/a" }}</code></td></tr>
+      <tr><th>Account</th><td>{{ r.account_id or "n/a" }}</td></tr>
+      <tr><th>Verified identity</th><td><code>{{ r.identity_arn or "n/a" }}</code></td></tr>
       {% endif %}
       <tr><th>Regions</th><td>{{ r.regions | join(", ") or "n/a" }}</td></tr>
-      <tr><th>Scan date</th><td>{{ r.generated_at }}</td></tr>
-      <tr><th>SentryHive version</th><td>v{{ r.tool_version }}</td></tr>
-      <tr><th>Scanners &amp; versions</th><td>
-        {% for s in r.scanners %}{{ s.name }} ({{ s.version or "n/a" }}) — {{ s.status }}{% if not loop.last %}<br>{% endif %}{% endfor %}
-      </td></tr>
-      {% if r.has_scanner_errors %}
-      <tr><th>Scan status</th><td>Incomplete — scanner errors detected</td></tr>
-      {% endif %}
-      <tr><th>Total findings</th><td>{{ r.total }}</td></tr>
+      <tr><th>Generated</th><td>{{ r.generated_at }}</td></tr>
+      <tr><th>Toolchain</th><td>{% for s in r.scanners %}{{ s.name }} {{ s.version or "(version unavailable)" }} — {{ s.status }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td></tr>
+      <tr><th>Evidence</th><td>{{ r.failed_total }} failing · {{ r.status_counts.get("pass",0) }} passing · {{ r.status_counts.get("info",0) }} observations</td></tr>
     </tbody>
   </table>
-  <p style="color:#6b7280;font-size:11px">All scanning and report generation runs locally; no scan data leaves the operator's machine.</p>
+  <p class="section-note">All scanners and report rendering run locally. Public attack-surface observations require human validation and are not counted as failures unless CloudFox emitted an unambiguous risk signal.</p>
 </section>
 
-<div class="print-only toc">
+<section class="print-only toc">
   <h2>Contents</h2>
   <ul>
-    <li><a href="#sec-summary">Executive summary</a></li>
-    {% if r.compliance %}<li><a href="#sec-compliance">Compliance posture</a></li>{% endif %}
-    {% if r.iam_highlights %}<li><a href="#sec-iam">IAM privilege-escalation highlights</a></li>{% endif %}
-    {% if r.eks_findings %}<li><a href="#sec-eks">EKS Hardening</a></li>{% endif %}
-    <li><a href="#sec-findings">All findings</a></li>
+    <li><a href="#summary">Executive summary</a></li>
+    <li><a href="#priority">Priority risks</a></li>
+    {% if r.compliance %}<li><a href="#compliance">Compliance posture</a></li>{% endif %}
+    {% if r.attack_surface_findings %}<li><a href="#attack-surface">AWS attack surface</a></li>{% endif %}
+    {% if r.eks_findings %}<li><a href="#kubernetes">Kubernetes posture</a></li>{% endif %}
+    <li><a href="#scanners">Tool execution evidence</a></li>
+    <li><a href="#failure-register">Failure register</a></li>
   </ul>
-</div>
+</section>
 
 <header>
   <div class="brand">
-    {% if r.logo_data_uri %}<img src="{{ r.logo_data_uri }}" alt="client logo">{% endif %}
+    {% if r.logo_data_uri %}<img src="{{ r.logo_data_uri }}" alt="Client logo">{% endif %}
     <div>
-      {% if r.client_name %}<div class="client">{{ r.client_name }}</div>{% endif %}
-      <h1><span class="hex">⬡</span> SentryHive Security Report</h1>
+      <div class="eyebrow">{{ r.client_name or "Security assessment" }}</div>
+      <h1>⬡ SentryHive Security Report</h1>
     </div>
   </div>
   <div class="meta">
     {% if r.is_rollup %}
-    <span>Accounts <code>{{ r.accounts | join(", ") }}</code></span>
+    <span>Accounts <code>{{ r.accounts | join(", ") or "n/a" }}</code></span>
     {% else %}
     <span>Account <code>{{ r.account_id or "n/a" }}</code></span>
     <span>Identity <code>{{ r.identity_arn or "n/a" }}</code></span>
@@ -157,47 +230,80 @@
     <span>SentryHive <code>v{{ r.tool_version }}</code></span>
   </div>
 </header>
+
 <main>
-  <div class="cards" id="sec-summary">
+  <div class="metrics" id="summary">
     {% for sev in severity_order %}
-    <div class="card">
-      <div class="n" style="color:{{ severity_colors[sev] }}">{{ r.severity_counts.get(sev, 0) }}</div>
-      <div class="l">{{ sev }}</div>
+    <div class="metric">
+      <strong style="color:{{ severity_colors[sev] }}">{{ r.failure_counts.get(sev,0) }}</strong>
+      <span>{{ sev }} failures</span>
     </div>
     {% endfor %}
-    <div class="card"><div class="n">{{ r.total }}</div><div class="l">Total</div></div>
+    <div class="metric"><strong>{{ r.status_counts.get("pass",0) }}</strong><span>Pass evidence</span></div>
+    <div class="metric"><strong>{{ r.status_counts.get("info",0) }}</strong><span>Observations</span></div>
   </div>
 
-  {% if r.has_scanner_errors %}
-  <section class="alert">
+  <section class="keep">
+    <h2>Executive summary</h2>
+    <p class="lede">
+      The assessment produced <strong>{{ r.failed_total }} failing findings</strong> across
+      {{ r.services | length }} service area{% if r.services | length != 1 %}s{% endif %}.
+      {% if r.failure_counts.get("Critical",0) or r.failure_counts.get("High",0) %}
+      Immediate attention is recommended for {{ r.failure_counts.get("Critical",0) }} critical and
+      {{ r.failure_counts.get("High",0) }} high-severity failures.
+      {% else %}
+      No critical or high-severity failures were normalized from the completed scanner output.
+      {% endif %}
+      {{ r.status_counts.get("pass",0) }} passing checks remain available as evidence; {{ r.status_counts.get("info",0) }}
+      informational observations require context-specific validation.
+    </p>
+  </section>
+
+  {% if r.has_incomplete_scanners %}
+  <section class="alert keep">
     <h2>Scan incomplete</h2>
-    <p>One or more scanners failed. Treat zero findings as incomplete evidence, not a clean account.</p>
-    <ul>
-      {% for s in r.scanner_errors %}
-      <li><strong>{{ s.name }}</strong>{% if s.message %}: {{ s.message }}{% endif %}</li>
-      {% endfor %}
-    </ul>
+    <p>One or more selected scanners failed or were skipped. Treat absent findings as incomplete evidence, not a clean environment.</p>
+    <ul>{% for s in r.incomplete_scanners %}<li><strong>{{ s.name }}</strong> ({{ s.status }}){% if s.message %}: {{ s.message | plain_text }}{% endif %}</li>{% endfor %}</ul>
   </section>
   {% endif %}
 
+  <section id="priority">
+    <h2>Priority risks</h2>
+    <p class="section-note">Highest-severity failures, ordered for remediation triage.</p>
+    {% if r.top_risks %}
+    <div class="risk-list">
+      {% for f in r.top_risks %}
+      <article class="risk">
+        <div class="risk-head">
+          <span class="sev" style="background:{{ severity_colors[f.severity.label] }}">{{ f.severity.label }}</span>
+          <h3>{{ f.title or f.check }}</h3>
+        </div>
+        <div><span class="tag">{{ f.tool }}</span>{% if f.account_id %}<span class="tag">acct {{ f.account_id }}</span>{% endif %}</div>
+        <p><code>{{ f.resource or "n/a" }}</code></p>
+        {% if f.description %}<p class="plain">{{ f.description | plain_text }}</p>{% endif %}
+        {% if f.remediation %}<p class="remediation plain">Remediation: {{ f.remediation | plain_text }}</p>{% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    {% elif r.has_incomplete_scanners %}
+    <p class="empty">No priority list is shown because scanner evidence is incomplete.</p>
+    {% else %}
+    <p class="empty">No failing findings.</p>
+    {% endif %}
+  </section>
+
   {% if r.compliance %}
-  <section id="sec-compliance">
+  <section id="compliance">
     <h2>Compliance posture</h2>
+    <p class="section-note">Control evidence grouped by mapped framework. This is technical posture, not certification.</p>
     <table>
-      <thead><tr><th>Framework</th><th>Pass</th><th>Fail</th><th style="width:40%">% pass</th></tr></thead>
+      <thead><tr><th style="width:32%">Framework</th><th style="width:12%">Pass</th><th style="width:12%">Fail</th><th>Pass rate</th></tr></thead>
       <tbody>
       {% for c in r.compliance %}
-        <tr>
-          <td><strong>{{ c.framework }}</strong></td>
-          <td>{{ c.passed }}</td>
-          <td>{{ c.failed }}</td>
-          <td>
-            <div style="display:flex;align-items:center;gap:8px">
-              <div class="bar"><span style="width:{{ c.pass_pct }}%"></span></div>
-              <span>{{ c.pass_pct }}%</span>
-            </div>
-          </td>
-        </tr>
+      <tr>
+        <td><strong>{{ c.framework }}</strong></td><td>{{ c.passed }}</td><td>{{ c.failed }}</td>
+        <td><div class="bar"><div class="track"><span style="width:{{ c.pass_pct }}%"></span></div><span>{{ c.pass_pct }}%</span></div></td>
+      </tr>
       {% endfor %}
       </tbody>
     </table>
@@ -205,154 +311,153 @@
   {% endif %}
 
   {% if r.iam_highlights %}
-  <section id="sec-iam">
-    <h2>IAM privilege-escalation highlights</h2>
-    <p style="color:var(--muted);margin-top:-6px">How an attacker could escalate or take over within this account.</p>
+  <section id="iam">
+    <h2>IAM escalation highlights</h2>
+    <p class="section-note">Identity paths most likely to increase attacker capability.</p>
     <table>
-      <thead><tr><th>Severity</th><th>Resource</th><th>Finding</th></tr></thead>
+      <thead><tr><th style="width:12%">Severity</th><th style="width:34%">Resource</th><th>Finding</th></tr></thead>
       <tbody>
       {% for f in r.iam_highlights %}
-        <tr>
-          <td><span class="sev" style="background:{{ severity_colors[f.severity.label] }}">{{ f.severity.label }}</span></td>
-          <td><code>{{ f.resource }}</code></td>
-          <td>{{ f.title or f.check }}{% if f.description %}<br><span style="color:var(--muted)">{{ f.description }}</span>{% endif %}</td>
-        </tr>
+      <tr><td><span class="sev" style="background:{{ severity_colors[f.severity.label] }}">{{ f.severity.label }}</span></td>
+          <td><code>{{ f.resource or "n/a" }}</code></td>
+          <td><strong>{{ f.title or f.check }}</strong>{% if f.description %}<br><span class="plain">{{ f.description | plain_text }}</span>{% endif %}</td></tr>
       {% endfor %}
       </tbody>
     </table>
+  </section>
+  {% endif %}
+
+  {% if r.attack_surface_findings %}
+  <section id="attack-surface">
+    <h2>AWS attack surface</h2>
+    <p class="section-note">CloudFox evidence. Informational exposure is not a vulnerability until validated in context.</p>
+    <table>
+      <thead><tr><th style="width:11%">Status</th><th style="width:13%">Severity</th><th style="width:31%">Resource</th><th>Observation</th></tr></thead>
+      <tbody>
+      {% for f in r.attack_surface_findings[:50] %}
+      <tr><td><span class="tag status-{{ f.status }}">{{ f.status }}</span></td>
+          <td><span class="sev" style="background:{{ severity_colors[f.severity.label] }}">{{ f.severity.label }}</span></td>
+          <td><code>{{ f.resource or "n/a" }}</code></td><td><strong>{{ f.title or f.check }}</strong></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if r.attack_surface_findings | length > 50 %}<p class="section-note">Showing 50 of {{ r.attack_surface_findings | length }}; the full set is in HTML filtering and findings.json.</p>{% endif %}
   </section>
   {% endif %}
 
   {% if r.eks_findings %}
-  <section id="sec-eks">
-    <h2>EKS Hardening</h2>
-    <p style="color:var(--muted);margin-top:-6px">In-cluster best-practice checks (hardeneks). Findings are grouped by cluster.</p>
+  <section id="kubernetes">
+    <h2>Kubernetes posture</h2>
+    <p class="section-note">Combined HardenEKS and Kubescape results for explicitly selected clusters.</p>
     <table>
-      <thead><tr><th>Severity</th><th>Cluster / resource</th><th>Region</th><th>Finding</th></tr></thead>
+      <thead><tr><th style="width:12%">Severity</th><th style="width:15%">Tool</th><th style="width:31%">Cluster / resource</th><th>Finding</th></tr></thead>
       <tbody>
-      {% for f in r.eks_findings %}
-        <tr>
-          <td><span class="sev" style="background:{{ severity_colors[f.severity.label] }}">{{ f.severity.label }}</span></td>
-          <td><code>{{ f.resource or "cluster" }}</code></td>
-          <td>{{ f.region or "—" }}</td>
-          <td><strong>{{ f.title or f.check }}</strong>
-            {% if f.remediation %}<br><span class="remediation">→ {{ f.remediation }}</span>{% endif %}</td>
-        </tr>
+      {% for f in r.eks_findings[:75] %}
+      <tr><td><span class="sev" style="background:{{ severity_colors[f.severity.label] }}">{{ f.severity.label }}</span></td>
+          <td>{{ f.tool }}</td><td><code>{{ f.resource or "cluster" }}</code></td><td><strong>{{ f.title or f.check }}</strong></td></tr>
       {% endfor %}
       </tbody>
     </table>
+    {% if r.eks_findings | length > 75 %}<p class="section-note">Showing 75 of {{ r.eks_findings | length }}; the full set is in HTML filtering and findings.json.</p>{% endif %}
   </section>
   {% endif %}
 
-  <section>
-    <h2>Scanners</h2>
+  <section id="scanners" class="keep">
+    <h2>Tool execution evidence</h2>
     <table>
-      <thead><tr><th>Scanner</th><th>Status</th><th>Findings</th><th>Version</th><th>Notes</th></tr></thead>
+      <thead><tr><th style="width:23%">Scanner</th><th style="width:10%">Status</th><th style="width:10%">Records</th><th style="width:23%">Version</th><th>Notes</th></tr></thead>
       <tbody>
       {% for s in r.scanners %}
-        <tr><td>{{ s.name }}</td><td><span class="pill">{{ s.status }}</span></td>
-            <td>{{ s.findings }}</td><td><span class="pill">{{ s.version or "—" }}</span></td><td>{{ s.message }}</td></tr>
+      <tr><td><strong>{{ s.name }}</strong></td><td><span class="tag status-{{ s.status }}">{{ s.status }}</span></td>
+          <td>{{ s.findings }}</td><td>{{ s.version or "unavailable" }}</td><td class="plain">{{ s.message | plain_text }}</td></tr>
       {% endfor %}
       </tbody>
     </table>
   </section>
 
-  {% if r.top_risks %}
-  <section>
-    <h2>Top {{ r.top_risks | length }} risks</h2>
-    <table>
-      <thead><tr><th>#</th><th>Severity</th><th>Tool</th><th>Resource</th><th>Check</th></tr></thead>
-      <tbody>
-      {% for f in r.top_risks %}
-        <tr>
-          <td>{{ loop.index }}</td>
-          <td><span class="sev" style="background:{{ severity_colors[f.severity.label] }}">{{ f.severity.label }}</span></td>
-          <td>{{ f.tool }}</td>
-          <td><code>{{ f.resource or "n/a" }}</code></td>
-          <td>{{ f.title or f.check }}</td>
-        </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </section>
-  {% endif %}
-
-  <section id="sec-findings">
-    <h2>All findings</h2>
+  <section class="screen-only" id="findings-section">
+    <h2>Unified evidence register</h2>
+    <p class="section-note">Defaults to failures. Passing evidence and informational observations remain in this same report.</p>
     <div class="controls">
-      <input id="q" type="search" placeholder="Filter by text (resource, check, description)…">
-      <select id="fsev">
-        <option value="">All severities</option>
-        {% for sev in severity_order %}<option value="{{ sev }}">{{ sev }}</option>{% endfor %}
-      </select>
-      <select id="ftool">
-        <option value="">All tools</option>
-        {% for s in r.scanners %}<option value="{{ s.name }}">{{ s.name }}</option>{% endfor %}
-      </select>
-      <select id="fstatus">
-        <option value="">All statuses</option>
-        <option value="fail">fail</option>
-        <option value="pass">pass</option>
-        <option value="info">info</option>
-      </select>
+      <input id="q" type="search" aria-label="Search findings" placeholder="Search resource, check, description…">
+      <select id="fsev" aria-label="Filter severity"><option value="">All severities</option>{% for sev in severity_order %}<option value="{{ sev }}">{{ sev }}</option>{% endfor %}</select>
+      <select id="ftool" aria-label="Filter tool"><option value="">All tools</option>{% for tool in r.findings | map(attribute="tool") | unique | sort %}<option value="{{ tool }}">{{ tool }}</option>{% endfor %}</select>
+      <select id="fstatus" aria-label="Filter status"><option value="">All statuses</option><option value="fail" selected>Failures</option><option value="pass">Pass evidence</option><option value="info">Observations</option></select>
+      <span class="visible-count" id="visible-count"></span>
     </div>
-    <table id="findings">
-      <thead><tr><th>Severity</th><th>Tool</th><th>Service</th><th>Resource</th><th>Finding</th></tr></thead>
-      <tbody>
-      {% for f in r.findings %}
-        <tr class="frow" data-sev="{{ f.severity.label }}" data-tool="{{ f.tool }}" data-status="{{ f.status }}"
-            data-text="{{ (f.title ~ ' ' ~ f.check ~ ' ' ~ f.resource ~ ' ' ~ f.description ~ ' ' ~ f.service) | lower }}">
+    <div class="wide-table">
+      <table id="findings">
+        <thead><tr><th style="width:10%">Severity</th><th style="width:12%">Tool</th><th style="width:15%">Service</th><th style="width:25%">Resource</th><th>Finding</th></tr></thead>
+        <tbody>
+        {% for f in r.findings %}
+        <tr class="frow" data-sev="{{ f.severity.label }}" data-tool="{{ f.tool }}" data-status="{{ f.status }}">
           <td><span class="sev" style="background:{{ severity_colors[f.severity.label] }}">{{ f.severity.label }}</span></td>
           <td>{{ f.tool }}</td>
-          <td>{{ f.service or "—" }}{% if f.region %}<br><span class="pill">{{ f.region }}</span>{% endif %}</td>
+          <td>{{ f.service or "—" }}{% if f.region %}<br><span class="tag">{{ f.region }}</span>{% endif %}</td>
           <td><code>{{ f.resource or "n/a" }}</code></td>
           <td>
-            <strong>{{ f.title or f.check }}</strong>
-            <span class="pill">{{ f.status }}</span>
-            {% if r.is_rollup and f.account_id %}<span class="pill">acct {{ f.account_id }}</span>{% endif %}
-            {% for c in f.compliance_refs %}{% if not c.startswith("flagged-by") %}<span class="pill">{{ c }}</span>{% endif %}{% endfor %}
-            <details>
-              <summary>details</summary>
-              {% if f.description %}<p>{{ f.description }}</p>{% endif %}
-              {% if f.remediation %}<p class="remediation">→ {{ f.remediation }}</p>{% endif %}
-              <p><span class="pill">id: {{ f.id }}</span> <span class="pill">check: {{ f.check }}</span> <span class="pill">source: {{ f.tool }}</span></p>
+            <strong>{{ f.title or f.check }}</strong> <span class="tag status-{{ f.status }}">{{ f.status }}</span>
+            {% if r.is_rollup and f.account_id %}<span class="tag">acct {{ f.account_id }}</span>{% endif %}
+            {% for c in f.compliance_refs[:4] %}{% if not c.startswith("flagged-by") %}<span class="tag">{{ c }}</span>{% endif %}{% endfor %}
+            {% if f.compliance_refs | length > 4 %}<span class="tag">+{{ f.compliance_refs | length - 4 }} controls</span>{% endif %}
+            <details><summary>Evidence and remediation</summary>
+              {% if f.description %}<p class="plain">{{ f.description | plain_text }}</p>{% endif %}
+              {% if f.remediation %}<p class="remediation plain">Remediation: {{ f.remediation | plain_text }}</p>{% endif %}
+              <p><span class="tag">id {{ f.id }}</span> <span class="tag">check {{ f.check }}</span></p>
             </details>
-            <div class="print-only">
-              {% if f.description %}<p style="margin:4px 0">{{ f.description }}</p>{% endif %}
-              {% if f.remediation %}<p class="remediation" style="margin:4px 0">→ {{ f.remediation }}</p>{% endif %}
-              <p style="font-size:11px;color:#6b7280">check: {{ f.check }} · source: {{ f.tool }}</p>
-            </div>
           </td>
         </tr>
-      {% else %}
-        <tr><td colspan="5">{% if r.has_scanner_errors %}No findings were normalized because the scan was incomplete.{% else %}No findings.{% endif %}</td></tr>
-      {% endfor %}
+        {% else %}
+        <tr><td colspan="5" class="empty">{% if r.has_incomplete_scanners %}No normalized evidence because the scan was incomplete.{% else %}No findings.{% endif %}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="print-only" id="failure-register">
+    <h2>Failure register</h2>
+    <p class="section-note">
+      Compact register of the highest-ranked {{ [r.failed_total,150] | min }} failing findings.
+      {% if r.failed_total > 150 %}The remaining {{ r.failed_total - 150 }} failures and all pass evidence are retained in report.html and findings.json.{% endif %}
+    </p>
+    <table class="register">
+      <colgroup><col><col><col><col></colgroup>
+      <thead><tr><th>Severity</th><th>Tool</th><th>Resource</th><th>Finding</th></tr></thead>
+      <tbody>
+      {% for f in r.failing_findings[:150] %}
+      <tr><td><span class="sev" style="background:{{ severity_colors[f.severity.label] }}">{{ f.severity.label }}</span></td>
+          <td>{{ f.tool }}</td><td><code>{{ f.resource or "n/a" }}</code></td>
+          <td><strong>{{ f.title or f.check }}</strong>{% if f.account_id %}<br><span class="tag">acct {{ f.account_id }}</span>{% endif %}</td></tr>
+      {% else %}<tr><td colspan="4" class="empty">No failing findings.</td></tr>{% endfor %}
       </tbody>
     </table>
   </section>
 </main>
-<footer>
-  Generated by <a href="https://github.com/d2k-klin/sentryhive">SentryHive</a> ·
-  no data leaves your machine
-</footer>
+
+<footer>This report was generated by <a href="https://github.com/d2k-klin/sentryhive">OSS SentryHive</a> by Mr. D · consolidated evidence, one engagement report</footer>
 <script>
-  const q = document.getElementById('q');
-  const fsev = document.getElementById('fsev');
-  const ftool = document.getElementById('ftool');
-  const fstatus = document.getElementById('fstatus');
-  const rows = Array.from(document.querySelectorAll('.frow'));
-  function apply() {
+  const q = document.getElementById("q");
+  const fsev = document.getElementById("fsev");
+  const ftool = document.getElementById("ftool");
+  const fstatus = document.getElementById("fstatus");
+  const visible = document.getElementById("visible-count");
+  const rows = Array.from(document.querySelectorAll(".frow"));
+  function applyFilters() {
     const text = q.value.trim().toLowerCase();
-    const sev = fsev.value, tool = ftool.value, status = fstatus.value;
-    rows.forEach(r => {
-      const ok = (!text || r.dataset.text.includes(text))
-        && (!sev || r.dataset.sev === sev)
-        && (!tool || r.dataset.tool === tool)
-        && (!status || r.dataset.status === status);
-      r.style.display = ok ? '' : 'none';
+    let shown = 0;
+    rows.forEach(row => {
+      const ok = (!text || row.textContent.toLowerCase().includes(text))
+        && (!fsev.value || row.dataset.sev === fsev.value)
+        && (!ftool.value || row.dataset.tool === ftool.value)
+        && (!fstatus.value || row.dataset.status === fstatus.value);
+      row.hidden = !ok;
+      if (ok) shown += 1;
     });
+    visible.textContent = `${shown} of ${rows.length}`;
   }
-  [q, fsev, ftool, fstatus].forEach(el => el.addEventListener('input', apply));
+  [q,fsev,ftool,fstatus].forEach(element => element.addEventListener("input",applyFilters));
+  applyFilters();
 </script>
 </body>
 </html>

@@ -28,8 +28,8 @@ SentryHive prints the account and identity it resolved, then prompts to proceed
 
 ## Scan multiple accounts
 
-Repeat `--role-arn`. You get a report per account under `reports/<account-id>/` and a
-cross-account roll-up at `reports/`.
+Repeat `--role-arn`. All account findings are combined into one report under
+`reports/`, while each finding retains its account ID.
 
 ```bash
 sentryhive scan \
@@ -42,7 +42,7 @@ sentryhive scan \
 
 ```bash
 sentryhive scan --profile prod \
-  --scanners prowler,cloudsplaining \
+  --scanners prowler,cloudsplaining,cloudfox \
   --regions eu-central-1,us-east-1
 ```
 
@@ -52,13 +52,18 @@ Add local IaC scanning with ASH:
 sentryhive scan --scanners ash --source-dir ./infra
 ```
 
-## Run EKS hardening (opt-in)
+## Choose whether Kubernetes is in scope
 
-EKS needs in-cluster access — see [EKS access](eks-access.md).
+Kubernetes is off by default and makes no cluster API calls. Enable it explicitly to
+run both HardenEKS and Kubescape. EKS needs in-cluster access — see
+[EKS access](eks-access.md).
 
 ```bash
-sentryhive scan --role-arn <role-arn> --eks --clusters prod-eks \
+sentryhive scan --role-arn <role-arn> --kubernetes --clusters prod-eks \
                 --kubeconfig ~/.kube/client-x
+
+# Explicit account-only scope
+sentryhive scan --profile prod --no-kubernetes
 ```
 
 ## Generate a branded client report (with PDF)
@@ -91,8 +96,8 @@ See [CI/CD](ci-cd.md) for the reusable GitHub Actions workflow.
 | `--role-arn` | — | IAM role ARN to assume (STS). Repeat for multi-account. |
 | `--external-id` | — | External ID for role assumption. |
 | `--regions` | session default | Comma-separated regions. |
-| `--scanners` | `prowler,cloudsplaining` | Account scanners to run; add `ash` for local IaC. |
-| `--eks` | off | Run EKS hardening (opt-in; needs in-cluster access). |
+| `--scanners` | `prowler,cloudsplaining,cloudfox` | Account scanners to run; add `ash` for local IaC. |
+| `--kubernetes / --no-kubernetes` | off | Include/exclude EKS HardenEKS + Kubescape checks. |
 | `--clusters` | all detected | Comma-separated EKS clusters to target. |
 | `--kubeconfig` | — | Path to a kubeconfig for EKS access. |
 | `--source-dir` | CWD | Directory ASH scans. |
@@ -119,7 +124,7 @@ See [CI/CD](ci-cd.md) for the reusable GitHub Actions workflow.
 | Code | Meaning |
 |------|---------|
 | `0` | Success. |
-| `1` | Authentication failure. |
+| `1` | Authentication failure, or a selected scanner failed. Reports are still written when scanner execution fails. |
 | `2` | Bad arguments (unknown scanner/format). |
 | `3` | `--fail-on` threshold breached. |
 

@@ -66,22 +66,52 @@ class Report:
         return len(self.findings)
 
     @property
+    def failed_total(self) -> int:
+        return self.status_counts.get("fail", 0)
+
+    @property
+    def failure_counts(self) -> dict[str, int]:
+        """Severity distribution for actual failures, excluding pass evidence/info."""
+        counts = {s.label: 0 for s in reversed(list(Severity))}
+        for finding in self.findings:
+            if finding.status == "fail":
+                counts[finding.severity.label] += 1
+        return counts
+
+    @property
+    def failing_findings(self) -> list[Finding]:
+        return [f for f in self.findings if f.status == "fail"]
+
+    @property
     def scanner_errors(self) -> list[ScannerSummary]:
         return [s for s in self.scanners if s.status == "error"]
+
+    @property
+    def incomplete_scanners(self) -> list[ScannerSummary]:
+        """Selected scanners that did not complete, including deliberate skips."""
+        return [s for s in self.scanners if s.status != "ok"]
 
     @property
     def has_scanner_errors(self) -> bool:
         return bool(self.scanner_errors)
 
     @property
+    def has_incomplete_scanners(self) -> bool:
+        return bool(self.incomplete_scanners)
+
+    @property
     def eks_findings(self) -> list[Finding]:
-        """hardeneks findings, for the report's dedicated EKS Hardening section."""
-        return [f for f in self.findings if f.tool == "hardeneks"]
+        """Kubernetes findings, for the report's dedicated cluster section."""
+        return [f for f in self.findings if f.tool.split("[", 1)[0] in {"hardeneks", "kubescape"}]
+
+    @property
+    def attack_surface_findings(self) -> list[Finding]:
+        return [f for f in self.findings if f.tool == "cloudfox"]
 
     @property
     def account_findings(self) -> list[Finding]:
         """Non-EKS (IAM-only / account-level) findings."""
-        return [f for f in self.findings if f.tool != "hardeneks"]
+        return [f for f in self.findings if f.tool.split("[", 1)[0] not in {"hardeneks", "kubescape"}]
 
     def to_dict(self) -> dict:
         return {
@@ -94,8 +124,10 @@ class Report:
             "sentryhive_version": self.tool_version,
             "summary": {
                 "total": self.total,
-                "scan_complete": not self.has_scanner_errors,
+                "failing": self.failed_total,
+                "scan_complete": not self.has_incomplete_scanners,
                 "by_severity": self.severity_counts,
+                "failing_by_severity": self.failure_counts,
                 "by_status": self.status_counts,
                 "services": self.services,
                 "compliance": [vars(c) | {"pass_pct": c.pass_pct, "total": c.total} for c in self.compliance],
@@ -248,7 +280,8 @@ def build_rollup(
     accounts: list[str] = []
     regions: set[str] = set()
     for rep in reports:
-        accounts.append(rep.account_id)
+        if rep.account_id:
+            accounts.extend(rep.accounts or [rep.account_id])
         regions.update(rep.regions)
         combined.extend(rep.findings)
         for s in rep.scanners:
@@ -257,6 +290,11 @@ def build_rollup(
                 scanner_status[s.name] = ScannerSummary(s.name, s.status, s.findings, s.message, s.version)
             else:
                 agg.findings += s.findings
+                status_rank = {"ok": 0, "skipped": 1, "error": 2}
+                if status_rank.get(s.status, 0) > status_rank.get(agg.status, 0):
+                    agg.status = s.status
+                if s.message and s.message not in agg.message:
+                    agg.message = "; ".join(filter(None, (agg.message, s.message)))
 
     ranked = rank(combined)  # no cross-account dedup: same ARN in two accounts is distinct
     severity_counts, status_counts, services = _counts(ranked)
@@ -277,6 +315,6 @@ def build_rollup(
         iam_highlights=iam_highlights(ranked),
         client_name=client_name,
         logo_data_uri=logo_data_uri,
-        accounts=accounts,
+        accounts=sorted(set(accounts)),
         is_rollup=True,
     )

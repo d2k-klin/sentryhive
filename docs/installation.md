@@ -8,8 +8,8 @@ WeasyPrint are not supported on native Windows.
 
 ## Docker (recommended)
 
-The image bundles Prowler, Cloudsplaining, hardeneks, ASH, the AWS CLI, kubectl, and
-WeasyPrint (for PDF).
+The image bundles Prowler, Cloudsplaining, CloudFox, HardenEKS, Kubescape, ASH, the
+AWS CLI, kubectl, and WeasyPrint (for PDF).
 
 ```bash
 git clone https://github.com/d2k-klin/sentryhive
@@ -25,7 +25,7 @@ docker build -t sentryhive:latest .
 docker run --rm sentryhive:latest --version
 ```
 
-Image tags follow the release version (e.g. `sentryhive:0.1.0`) plus `latest`.
+Image tags follow the release version (e.g. `sentryhive:0.0.2`) plus `latest`.
 
 ## From source
 
@@ -39,8 +39,9 @@ pip install -e ".[dev,pdf]"
 sentryhive --version
 ```
 
-The underlying scanners (`prowler`, `cloudsplaining`, `hardeneks`, `ash`) must be on
-your `PATH` for the corresponding scans to run; SentryHive reports any that are
+The underlying scanners (`prowler`, `cloudsplaining`, `cloudfox`, `hardeneks`,
+`kubescape`, `ash`) must be on your `PATH` for the corresponding scans to run;
+SentryHive reports any that are
 missing as `skipped`. PDF output additionally needs WeasyPrint's system libraries
 (`pango`, `cairo`) — on macOS: `brew install pango`; on Debian/Ubuntu:
 `apt-get install libpango-1.0-0 libpangocairo-1.0-0 libcairo2`.

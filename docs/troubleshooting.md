@@ -10,13 +10,13 @@ Symptom → likely cause → fix.
 | Scanner reported `skipped — '<tool>' not found on PATH` | Running from source without that tool | Install the tool, or use the Docker image which bundles all of them. |
 | Scanner appears quiet for a long time | The underlying scanner is still running a large account scan | Wait for the elapsed-time heartbeat; re-run with `--scanner-output` to stream raw scanner logs. |
 | Report shows `0 findings` with scanner status `error` / exit code `1` | One or more scanners failed or timed out before producing parseable output | Treat the report as incomplete evidence. Re-run the failed scanner with `--scanner-output`; for Prowler, narrow scope with `--regions` or `--scanners prowler` while debugging. |
-| `--eks` run: cluster `skipped — no in-cluster access` | Missing Kubernetes RBAC grant | Apply the [EKS access](eks-access.md) onboarding (access entry + RBAC). |
-| `--eks` run: `API server unreachable (private endpoint?)` | Cluster has a private-only API endpoint | Run from within the client VPC (VPN/bastion/in-VPC runner). |
-| `--eks` requested but `no EKS clusters found` | No clusters, or wrong region | Add `--regions`; confirm clusters exist with `aws eks list-clusters`. |
+| `--kubernetes` run: cluster `skipped — no in-cluster access` | Missing Kubernetes RBAC grant | Apply the [EKS access](eks-access.md) onboarding (access entry + RBAC). |
+| `--kubernetes` run: `API server unreachable (private endpoint?)` | Cluster has a private-only API endpoint | Run from within the client VPC (VPN/bastion/in-VPC runner). |
+| `--kubernetes` requested but `no EKS clusters found` | No clusters, wrong region, or missing `eks:ListClusters` | Add `--regions`; confirm clusters exist with `aws eks list-clusters`. |
 | `PDF generation skipped: WeasyPrint is not available` | WeasyPrint or pango/cairo missing | Use Docker, or `pip install "sentryhive[pdf]"` + system libs (`brew install pango` / `apt-get install libpango-1.0-0 libcairo2`). |
 | `--pdf-engine chromium`: `no Chromium/Chrome binary found` | No Chromium on PATH | Install Chromium, or use the default `weasyprint` engine. |
 | Wrong/empty region results | Region not set | Pass `--regions`, or set `AWS_DEFAULT_REGION`. |
-| `Unknown scanner(s)` / `Unknown format(s)` | Typo in `--scanners`/`--format` | Valid scanners: `prowler,cloudsplaining,hardeneks,ash`. Valid formats: `html,md,json,pdf`. |
+| `Unknown scanner(s)` / `Unknown format(s)` | Typo in `--scanners`/`--format` | Valid scanners: `prowler,cloudsplaining,cloudfox,hardeneks,kubescape,ash`. Valid formats: `html,md,json,pdf`. |
 | Exit code `3` in CI | `--fail-on` threshold breached | Expected — findings at/above the threshold exist. Review the report. |
 | Docker: `--profile` ignored | `~/.aws` not mounted | Use the provided `docker-compose.yml`, or mount `-v ~/.aws:/root/.aws:ro`. |
 

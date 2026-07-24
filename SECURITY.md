@@ -26,7 +26,12 @@ These are the properties SentryHive is designed to uphold. Reports that these ar
 
 ## Supply chain
 
-SentryHive pulls in third-party scanners (Prowler, Cloudsplaining, hardeneks, ASH). Pin the image digest in production and review the [Dockerfile](Dockerfile) for the exact versions installed. Run the image you build yourself if you require provenance guarantees.
+SentryHive pulls in third-party scanners (Prowler, Cloudsplaining, CloudFox,
+HardenEKS, Kubescape, and ASH), plus AWS CLI and kubectl. Python tools are isolated
+from the SentryHive application environment; downloaded CloudFox and Kubescape
+binaries are checksum-verified. Pin the image digest in production and review the
+[Dockerfile](Dockerfile) for exact versions. Build the image yourself if you require
+end-to-end provenance guarantees.
 
 ## Supported versions
 

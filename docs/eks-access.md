@@ -1,37 +1,41 @@
-# EKS Hardening access (opt-in)
+# Kubernetes / EKS access (opt-in)
 
-EKS hardening (`hardeneks`) is fundamentally different from the other scanners.
+Kubernetes assessment (HardenEKS + Kubescape) is fundamentally different from the
+AWS account scanners.
 
-| | Prowler / Cloudsplaining | hardeneks |
+| | Prowler / Cloudsplaining / CloudFox | HardenEKS / Kubescape |
 |---|---|---|
 | Data source | AWS API only | **Inside the Kubernetes cluster** |
 | Access needed | Read-only **IAM** role | Read-only IAM role **+ in-cluster RBAC** per cluster |
 | Works via assume-role alone? | ✅ Yes | ❌ No — needs an extra in-cluster grant |
 
 **Account-level scanning works without any of this.** The default scan
-(`prowler,cloudsplaining`) only needs the read-only IAM role from
-[`audit-role.cfn.yaml`](../iam/audit-role.cfn.yaml). EKS hardening is a separate,
-opt-in second phase you enable with `--eks`, and it requires the client to grant
-the audit principal Kubernetes-level read access on **each** cluster.
+(`prowler,cloudsplaining,cloudfox`) only needs the documented read-only AWS permissions,
+which are provided by [`audit-role.cfn.yaml`](../iam/audit-role.cfn.yaml). Kubernetes
+assessment is a separate, opt-in phase enabled with `--kubernetes`; the client must
+grant the audit principal Kubernetes-level read access on **each** cluster.
 
 ## How SentryHive behaves
 
-- **Default run:** SentryHive calls `eks:ListClusters` and, if clusters exist,
-  *reports* them and notes that EKS hardening is available via `--eks`. It does
-  **not** silently run hardeneks.
-- **`--eks`:** runs the EKS phase against detected clusters (or `--clusters a,b`).
+- **`--no-kubernetes` (default):** does not discover clusters or connect to the
+  Kubernetes API.
+- **`--kubernetes`:** runs HardenEKS and Kubescape against detected clusters (or
+  `--clusters a,b`).
+- **Compatibility:** the legacy `--eks` spelling still enables the same phase.
 - **Preflight:** before scanning each cluster, SentryHive runs a
   `kubectl auth can-i list pods -A` probe. If access is missing (or the API server
   is unreachable), that cluster is **skipped gracefully** with an actionable
-  message — the rest of the run continues.
+  message — the rest of the run continues and the combined report is marked
+  incomplete. A requested Kubernetes phase with no discovered clusters is recorded
+  the same way rather than disappearing from the evidence.
 
 ```bash
 # Account scan only (no EKS access required)
 sentryhive scan --role-arn arn:aws:iam::<client>:role/SentryHiveAudit --external-id <id>
 
-# Add EKS hardening (requires the grants below)
+# Add the Kubernetes assessment (requires the grants below)
 sentryhive scan --role-arn arn:aws:iam::<client>:role/SentryHiveAudit --external-id <id> \
-  --eks --clusters prod-eks,staging-eks --kubeconfig ~/.kube/client-x
+  --kubernetes --clusters prod-eks,staging-eks --kubeconfig ~/.kube/client-x
 ```
 
 ## Granting access (client side, per cluster)
@@ -69,3 +73,6 @@ Pick the path that matches the cluster's authentication mode.
 - **Partial access:** in a multi-cluster account, reachable clusters are scanned
   and the rest are reported as skipped; the run never aborts because one cluster is
   inaccessible.
+- **Generic Kubernetes:** the current discovery and kubeconfig bootstrap path is
+  EKS-specific. A supplied kubeconfig can be used for access, but cluster selection
+  and the surrounding engagement remain AWS/EKS-oriented.

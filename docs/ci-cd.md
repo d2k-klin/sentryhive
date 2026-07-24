@@ -20,7 +20,7 @@ jobs:
     with:
       role-arn: arn:aws:iam::123456789012:role/SentryHiveAudit
       regions: eu-central-1,us-east-1
-      scanners: prowler,cloudsplaining
+      scanners: prowler,cloudsplaining,cloudfox
       fail-on: high
 ```
 
@@ -30,7 +30,8 @@ jobs:
 |-------|---------|---------|
 | `role-arn` | required | Role assumed via OIDC. |
 | `regions` | `us-east-1` | Comma-separated regions. |
-| `scanners` | `prowler,cloudsplaining` | Scanners to run. |
+| `scanners` | `prowler,cloudsplaining,cloudfox` | Account scanners to run. |
+| `kubernetes` | `false` | Include EKS checks; the runner needs cluster network access and RBAC. |
 | `fail-on` | `""` | Fail the job at/above this severity. |
 
 ## Using OIDC

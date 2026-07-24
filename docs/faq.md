@@ -17,12 +17,20 @@ Not with Docker — the image bundles everything. From source, install the tools
 want; missing ones are reported as `skipped`, not errors.
 
 **Why didn't EKS hardening run?**
-It's opt-in. The default run only detects and notes EKS clusters. Run with `--eks`,
-and grant in-cluster access first — see [EKS access](eks-access.md).
+It's opt-in. Run with `--kubernetes`, and grant in-cluster access first — see
+[EKS access](eks-access.md). The default `--no-kubernetes` scope does not discover or
+connect to clusters.
 
 **Can I scan several client accounts at once?**
-Yes — repeat `--role-arn`. You get a per-account report plus a roll-up. See
+Yes — repeat `--role-arn`. You get one combined report whose findings retain their
+account IDs. See
 [usage](usage.md#scan-multiple-accounts).
+
+**Do I need an IAM role, or are AWS credentials enough?**
+Credentials are enough when their principal is already in the target account and has
+the required read permissions. A role is needed for cross-account/client access.
+Kubernetes additionally needs RBAC and API-server connectivity. See
+[Authentication](authentication.md#do-i-need-a-role).
 
 **How do I get a branded PDF for a client?**
 `sentryhive scan ... --client-name "Acme Corp" --logo logo.png --pdf`. See

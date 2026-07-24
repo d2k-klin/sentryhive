@@ -58,6 +58,21 @@ data "aws_iam_policy_document" "extra_read" {
       "iam:GenerateCredentialReport",
       "iam:GetAccountAuthorizationDetails",
       "iam:GetCredentialReport",
+      "iam:SimulatePrincipalPolicy",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "SentryHiveCloudFoxCoverage"
+    effect = "Allow"
+    actions = [
+      "apprunner:DescribeService",
+      "apprunner:ListServices",
+      "grafana:DescribeWorkspace",
+      "grafana:ListWorkspaces",
+      "lambda:GetFunctionUrlConfig",
+      "lightsail:GetContainerServices",
     ]
     resources = ["*"]
   }

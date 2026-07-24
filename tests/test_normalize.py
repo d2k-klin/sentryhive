@@ -1,8 +1,10 @@
 from sentryhive.models import Severity
 from sentryhive.normalize import (
     parse_ash,
+    parse_cloudfox,
     parse_cloudsplaining,
     parse_hardeneks,
+    parse_kubescape,
     parse_prowler,
 )
 
@@ -119,6 +121,101 @@ def test_parse_hardeneks():
     assert f.severity is Severity.HIGH
 
 
+def test_parse_cloudfox_separates_risks_from_observations():
+    raw = {
+        "workloads": [
+            {
+                "Account": "123456789012",
+                "Service": "Lambda",
+                "Region": "eu-central-1",
+                "Arn": "arn:aws:lambda:eu-central-1:123456789012:function:admin",
+                "Role": "arn:aws:iam::123456789012:role/Admin",
+                "IsAdminRole?": "YES",
+                "CanPrivEscToAdmin?": "No",
+            }
+        ],
+        "role-trusts-principals-root-trusts-without-external-id": [
+            {
+                "Account": "123456789012",
+                "Role Arn": "arn:aws:iam::123456789012:role/Vendor",
+                "Trusted Principal": "arn:aws:iam::999999999999:root",
+            }
+        ],
+        "endpoints": [
+            {
+                "Account": "123456789012",
+                "Service": "ELB",
+                "Region": "eu-central-1",
+                "Endpoint": "public.example.com",
+                "Port": "443",
+                "Protocol": "https",
+                "Public": "Yes",
+            }
+        ],
+    }
+
+    findings = parse_cloudfox(raw)
+
+    assert len(findings) == 3
+    assert [f.status for f in findings].count("fail") == 2
+    assert [f.status for f in findings].count("info") == 1
+    assert any(f.check == "root-trust-without-external-id" for f in findings)
+
+
+def test_parse_kubescape_v2_groups_resources_per_control():
+    raw = {
+        "clusterName": "prod",
+        "summaryDetails": {
+            "controls": {
+                "C-0057": {
+                    "controlID": "C-0057",
+                    "name": "Privileged container",
+                    "statusInfo": {"status": "failed"},
+                    "severity": "Critical",
+                    "ResourceCounters": {"failedResources": 2, "passedResources": 4},
+                },
+                "C-0005": {
+                    "controlID": "C-0005",
+                    "name": "API server insecure port",
+                    "statusInfo": {"status": "passed"},
+                    "scoreFactor": 9,
+                    "ResourceCounters": {"failedResources": 0, "passedResources": 1},
+                },
+            },
+            "frameworks": [
+                {
+                    "name": "CIS",
+                    "controls": {
+                        "C-0057": {"controlID": "C-0057"},
+                        "C-0005": {"controlID": "C-0005"},
+                    },
+                }
+            ],
+        },
+        "results": [
+            {
+                "resourceID": "/apps/v1/default/Deployment/api",
+                "controls": [{"controlID": "C-0057", "status": {"status": "failed"}}],
+            },
+            {
+                "resourceID": "/apps/v1/default/Deployment/worker",
+                "controls": [{"controlID": "C-0057", "status": {"status": "failed"}}],
+            },
+        ],
+    }
+
+    findings = parse_kubescape(raw, cluster="prod", account_id="123", region="eu-central-1")
+
+    assert len(findings) == 2
+    failed = next(f for f in findings if f.check == "C-0057")
+    assert failed.status == "fail"
+    assert failed.severity is Severity.CRITICAL
+    assert "2 affected" in failed.resource
+    assert "Deployment/api" in failed.description
+    assert failed.compliance_refs == ["CIS:C-0057"]
+    assert next(f for f in findings if f.check == "C-0005").status == "pass"
+
+
 def test_parse_ash():
     raw = {
         "findings": [
@@ -136,6 +233,33 @@ def test_parse_ash():
     f = parse_ash(raw)[0]
     assert f.tool == "ash"
     assert f.resource == "main.tf:12"
+    assert f.service == "checkov"
+    assert f.severity is Severity.MEDIUM
+
+
+def test_parse_ash_v3_sarif():
+    result = {
+        "ruleId": "CKV_AWS_18",
+        "level": "warning",
+        "message": {"text": "S3 bucket access logging is disabled"},
+        "locations": [
+            {
+                "physicalLocation": {
+                    "artifactLocation": {"uri": "infra/main.tf"},
+                    "region": {"startLine": 42},
+                }
+            }
+        ],
+        "properties": {"scanner_name": "checkov"},
+    }
+    suppressed = {**result, "ruleId": "SUPPRESSED", "suppressions": [{"kind": "external"}]}
+    findings = parse_ash({"sarif": {"runs": [{"results": [result, suppressed]}]}})
+
+    assert len(findings) == 1
+    f = findings[0]
+    assert f.check == "CKV_AWS_18"
+    assert f.description == "S3 bucket access logging is disabled"
+    assert f.resource == "infra/main.tf:42"
     assert f.service == "checkov"
     assert f.severity is Severity.MEDIUM
 

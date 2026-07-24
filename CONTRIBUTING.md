@@ -13,7 +13,7 @@ pytest
 
 ## Adding a scanner
 
-SentryHive is built so a fifth scanner is a small, self-contained change:
+SentryHive is built so another scanner is a small, self-contained change:
 
 1. **Parser** — add `parse_<tool>()` to [`sentryhive/normalize.py`](sentryhive/normalize.py) that turns the tool's native output into a list of `Finding` objects. Be defensive: tool output schemas drift, so read fields best-effort and degrade gracefully rather than raising.
 2. **Wrapper** — add `sentryhive/scanners/<tool>.py` subclassing `Scanner`. Set `name`, `binary`, and `requires_aws`; implement `_scan(ctx, workdir)` to run the tool via `self._exec(...)`, load its output, and return a `ScanResult`.
@@ -21,7 +21,9 @@ SentryHive is built so a fifth scanner is a small, self-contained change:
 4. **Image** — add the tool to the [`Dockerfile`](Dockerfile).
 5. **Tests** — add a parser test with a representative fixture in `tests/`.
 
-You should not need to touch the aggregator, report layer, or CLI.
+The common aggregator and report schema normally need no changes. Update the CLI
+scanner listing/default set and user documentation when the new tool should be
+user-selectable or enabled by default.
 
 ## Conventions
 

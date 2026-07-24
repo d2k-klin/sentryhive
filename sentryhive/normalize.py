@@ -10,6 +10,7 @@ raising.
 from __future__ import annotations
 
 import html
+import ipaddress
 import re
 from typing import Any
 
@@ -207,6 +208,156 @@ def _clean_html(value: str) -> str:
 
 
 # --------------------------------------------------------------------------- #
+# CloudFox — focused attack-surface observations. CloudFox explicitly does not
+# produce findings, so only unambiguous risk markers become failures; endpoints
+# and network exposure remain informational observations for human validation.
+# --------------------------------------------------------------------------- #
+def parse_cloudfox(data: dict[str, list[dict]], account_id: str = "") -> list[Finding]:
+    findings: list[Finding] = []
+    for row in data.get("workloads", []):
+        admin = _yes(_get(row, "IsAdminRole?", "IsAdmin?", default=""))
+        privesc = _yes(_get(row, "CanPrivEscToAdmin?", default=""))
+        if not admin and not privesc:
+            continue
+        role = str(_get(row, "Role", default=""))
+        resource = str(_get(row, "Arn", "Name", default=role))
+        findings.append(
+            Finding(
+                tool="cloudfox",
+                check="workload-privesc" if privesc else "workload-admin-role",
+                title=(
+                    "Workload role can escalate to administrator" if privesc else "Workload uses an administrator role"
+                ),
+                description=f"{_get(row, 'Service', default='AWS')} workload is attached to role {role or 'unknown'}.",
+                severity=Severity.CRITICAL if privesc else Severity.HIGH,
+                resource=resource,
+                service=str(_get(row, "Service", default="iam")).lower(),
+                region=str(_get(row, "Region", default="")),
+                status="fail",
+                remediation=(
+                    "Replace the workload role with a least-privilege role and remove its path to administrator."
+                ),
+                compliance_refs=["IAM-least-privilege"],
+                account_id=str(_get(row, "Account", default=account_id)),
+            )
+        )
+
+    for row in data.get("role-trusts-principals-root-trusts-without-external-id", []):
+        role = str(_get(row, "Role Arn", "Role Name", default=""))
+        principal = str(_get(row, "Trusted Principal", default="external account root"))
+        findings.append(
+            Finding(
+                tool="cloudfox",
+                check="root-trust-without-external-id",
+                title="IAM role trusts an account root without an external ID",
+                description=f"Trusted principal: {principal}. CloudFox identified no sts:ExternalId condition.",
+                severity=Severity.HIGH,
+                resource=role,
+                service="iam",
+                status="fail",
+                remediation=(
+                    "Trust a specific principal where possible; for third parties, require a unique sts:ExternalId."
+                ),
+                compliance_refs=["IAM-least-privilege"],
+                account_id=str(_get(row, "Account", default=account_id)),
+            )
+        )
+
+    for row in data.get("resource-trusts", []):
+        public = _yes(_get(row, "Public", default=""))
+        interesting = _yes(_get(row, "Interesting", default=""))
+        if not public and not interesting:
+            continue
+        arn = str(_get(row, "ARN", default=""))
+        findings.append(
+            Finding(
+                tool="cloudfox",
+                check="public-resource-policy" if public else "interesting-resource-policy",
+                title=(
+                    "Resource policy permits public access" if public else "Resource trust requires manual validation"
+                ),
+                description=str(_get(row, "Resource Policy Summary", default="")),
+                severity=Severity.HIGH if public else Severity.MEDIUM,
+                resource=arn,
+                service=_service_from_arn(arn),
+                status="fail" if public else "info",
+                remediation=(
+                    "Restrict the resource policy to the required principals, actions, resources, and conditions."
+                ),
+                compliance_refs=[],
+                account_id=str(_get(row, "Account", default=account_id)),
+            )
+        )
+
+    for row in data.get("endpoints", []):
+        if not _yes(_get(row, "Public", default="")):
+            continue
+        endpoint = str(_get(row, "Endpoint", default=""))
+        findings.append(
+            Finding(
+                tool="cloudfox",
+                check="public-endpoint-observation",
+                title="Public endpoint exposed for validation",
+                description=(
+                    f"CloudFox observed {str(_get(row, 'Protocol', default='network')).upper()} "
+                    f"port {_get(row, 'Port', default='unknown')}. Public reachability is not by itself "
+                    "a vulnerability."
+                ),
+                severity=Severity.MEDIUM,
+                resource=endpoint or str(_get(row, "Name", default="")),
+                service=str(_get(row, "Service", default="")).lower(),
+                region=str(_get(row, "Region", default="")),
+                status="info",
+                remediation="Validate authentication, intended exposure, TLS, and network controls for this endpoint.",
+                compliance_refs=[],
+                account_id=str(_get(row, "Account", default=account_id)),
+            )
+        )
+
+    for row in data.get("network-ports", []):
+        host = str(_get(row, "Host", default=""))
+        if not _is_public_ip(host):
+            continue
+        findings.append(
+            Finding(
+                tool="cloudfox",
+                check="public-network-service-observation",
+                title="Public network service exposed for validation",
+                description=(
+                    f"CloudFox observed {str(_get(row, 'Protocol', default='network')).upper()} "
+                    f"port(s) {_get(row, 'Ports', default='unknown')} on a public address."
+                ),
+                severity=Severity.MEDIUM,
+                resource=host,
+                service=str(_get(row, "Service", default="")).lower(),
+                region=str(_get(row, "Region", default="")),
+                status="info",
+                remediation="Confirm that the service is intentionally public and restrict source ranges and ports.",
+                compliance_refs=[],
+                account_id=str(_get(row, "Account", default=account_id)),
+            )
+        )
+    return findings
+
+
+def _yes(value: Any) -> bool:
+    return str(value).strip().lower() in {"yes", "true", "public", "1"}
+
+
+def _service_from_arn(value: str) -> str:
+    parts = value.split(":")
+    return parts[2] if len(parts) > 2 and parts[0] == "arn" else ""
+
+
+def _is_public_ip(value: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(value.strip("[]"))
+    except ValueError:
+        return False
+    return ip.is_global
+
+
+# --------------------------------------------------------------------------- #
 # hardeneks — EKS best-practice checks. We parse its JSON export (list of rules).
 # --------------------------------------------------------------------------- #
 def parse_hardeneks(data: list[dict] | dict, account_id: str = "", region: str = "") -> list[Finding]:
@@ -237,10 +388,111 @@ def parse_hardeneks(data: list[dict] | dict, account_id: str = "", region: str =
 
 
 # --------------------------------------------------------------------------- #
+# Kubescape v2 JSON — one compact normalized finding per control. The native
+# result can contain a row for every resource/control pair; grouping here keeps
+# the combined report useful while retaining affected resource IDs in evidence.
+# --------------------------------------------------------------------------- #
+def parse_kubescape(
+    data: dict,
+    cluster: str = "",
+    account_id: str = "",
+    region: str = "",
+) -> list[Finding]:
+    summary = data.get("summaryDetails", {}) if isinstance(data, dict) else {}
+    controls = summary.get("controls", {}) if isinstance(summary, dict) else {}
+    resources_by_control: dict[str, list[str]] = {}
+    for result in data.get("results", []) if isinstance(data, dict) else []:
+        if not isinstance(result, dict):
+            continue
+        resource_id = str(_get(result, "resourceID", default=""))
+        for control in result.get("controls", []) or []:
+            if not isinstance(control, dict):
+                continue
+            status = _kubescape_status(control.get("status"))
+            if status == "fail":
+                cid = str(_get(control, "controlID", "id", default=""))
+                resources_by_control.setdefault(cid, []).append(resource_id)
+
+    framework_refs: dict[str, set[str]] = {}
+    for framework in summary.get("frameworks", []) if isinstance(summary, dict) else []:
+        if not isinstance(framework, dict):
+            continue
+        name = str(_get(framework, "name", default=""))
+        for key, control in (framework.get("controls", {}) or {}).items():
+            cid = str(_get(control, "controlID", "id", default=key)) if isinstance(control, dict) else str(key)
+            if name:
+                framework_refs.setdefault(cid, set()).add(f"{name}:{cid}")
+
+    rows = controls.items() if isinstance(controls, dict) else []
+    findings: list[Finding] = []
+    for key, control in rows:
+        if not isinstance(control, dict):
+            continue
+        cid = str(_get(control, "controlID", "id", default=key))
+        status = _kubescape_status(_get(control, "statusInfo", "status", default=""))
+        if status not in ("fail", "pass"):
+            continue
+        counters = _get(control, "ResourceCounters", "resourceCounters", default={})
+        failed = int(_get(counters, "failedResources", default=0) or 0) if isinstance(counters, dict) else 0
+        passed = int(_get(counters, "passedResources", default=0) or 0) if isinstance(counters, dict) else 0
+        affected = sorted({r for r in resources_by_control.get(cid, []) if r})
+        evidence = ", ".join(affected[:8])
+        if len(affected) > 8:
+            evidence += f", +{len(affected) - 8} more"
+        description = f"Kubescape evaluated {failed + passed} resources: {failed} failed, {passed} passed."
+        if evidence:
+            description += f" Affected: {evidence}."
+        severity = Severity.parse(_get(control, "severity", default=""))
+        if severity is Severity.INFO:
+            severity = _kubescape_score_severity(_get(control, "scoreFactor", default=0))
+        findings.append(
+            Finding(
+                tool="kubescape",
+                check=cid,
+                title=str(_get(control, "name", default=cid)),
+                description=description,
+                severity=severity,
+                resource=f"{cluster or data.get('clusterName') or 'cluster'} ({failed} affected)",
+                service="kubernetes",
+                region=region,
+                status=status,
+                remediation=f"Review and remediate Kubescape control {cid} on the affected Kubernetes resources.",
+                compliance_refs=sorted(framework_refs.get(cid, set())),
+                account_id=account_id,
+            )
+        )
+    return findings
+
+
+def _kubescape_status(value: Any) -> str:
+    if isinstance(value, dict):
+        value = _get(value, "status", default="")
+    key = str(value).strip().lower()
+    return "fail" if key in {"fail", "failed"} else "pass" if key in {"pass", "passed"} else "info"
+
+
+def _kubescape_score_severity(value: Any) -> Severity:
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return Severity.INFO
+    if score >= 9:
+        return Severity.CRITICAL
+    if score >= 7:
+        return Severity.HIGH
+    if score >= 4:
+        return Severity.MEDIUM
+    return Severity.LOW if score > 0 else Severity.INFO
+
+
+# --------------------------------------------------------------------------- #
 # ASH (Automated Security Helper) — aggregates SAST/IaC/secret scanners.
 # Parses the aggregated JSON results.
 # --------------------------------------------------------------------------- #
 def parse_ash(data: dict | list) -> list[Finding]:
+    if isinstance(data, dict) and isinstance(data.get("sarif"), dict):
+        return _parse_ash_sarif(data["sarif"])
+
     findings: list[Finding] = []
     rows = data.get("findings", data.get("results", [])) if isinstance(data, dict) else data
     for row in rows or []:
@@ -265,6 +517,65 @@ def parse_ash(data: dict | list) -> list[Finding]:
             )
         )
     return findings
+
+
+def _parse_ash_sarif(sarif: dict) -> list[Finding]:
+    """Parse the SARIF embedded in official AWS ASH v3 aggregate reports."""
+    findings: list[Finding] = []
+    level_severity = {
+        "error": Severity.HIGH,
+        "warning": Severity.MEDIUM,
+        "note": Severity.LOW,
+        "none": Severity.INFO,
+    }
+    for run in sarif.get("runs", []):
+        if not isinstance(run, dict):
+            continue
+        for row in run.get("results", []) or []:
+            if not isinstance(row, dict) or row.get("suppressions"):
+                continue
+            properties = row.get("properties", {}) or {}
+            message = row.get("message", {}) or {}
+            location = next(iter(row.get("locations", []) or []), {}) or {}
+            physical = location.get("physicalLocation", {}) or {}
+            artifact = physical.get("artifactLocation", {}) or {}
+            region = physical.get("region", {}) or {}
+            path = str(artifact.get("uri", ""))
+            line = region.get("startLine")
+            resource = f"{path}:{line}" if path and line else path
+            severity = Severity.parse(properties.get("issue_severity"))
+            if severity is Severity.INFO:
+                severity = level_severity.get(str(row.get("level", "")).lower(), Severity.INFO)
+
+            findings.append(
+                Finding(
+                    tool="ash",
+                    check=str(row.get("ruleId", "")),
+                    title=str(row.get("ruleId") or message.get("text") or "ASH finding"),
+                    description=str(message.get("markdown") or message.get("text") or ""),
+                    severity=severity,
+                    resource=resource,
+                    service=str(
+                        properties.get("scanner_name")
+                        or (properties.get("scanner_details", {}) or {}).get("tool_name")
+                        or "iac"
+                    ),
+                    status="fail",
+                    remediation=_sarif_remediation(row),
+                    compliance_refs=[],
+                    account_id="",
+                )
+            )
+    return findings
+
+
+def _sarif_remediation(row: dict) -> str:
+    for fix in row.get("fixes", []) or []:
+        description = fix.get("description", {}) if isinstance(fix, dict) else {}
+        text = description.get("text") if isinstance(description, dict) else ""
+        if text:
+            return str(text)
+    return ""
 
 
 # --------------------------------------------------------------------------- #

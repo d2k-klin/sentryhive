@@ -44,7 +44,9 @@ Expected output (abbreviated):
   ok (212 findings)
 ▶ running cloudsplaining …
   ok (8 findings)
-Findings by severity — 123456789012
+▶ running cloudfox …
+  ok (12 findings)
+Failing findings by severity — 123456789012
  Critical  3
  High      11
  ...
@@ -59,13 +61,16 @@ open ./reports/report.html      # macOS
 # xdg-open ./reports/report.html  # Linux
 ```
 
-Start with the **exec summary** at the top: severity counts, compliance posture per
-framework, and the IAM privilege-escalation highlights. Then scroll to **All findings**
-and filter by severity or tool.
+Start with the **executive summary** at the top: failure-only severity counts,
+compliance posture, IAM escalation highlights, and CloudFox attack-surface evidence.
+The unified register defaults to failures; switch status to pass or info for the
+remaining evidence.
 
 ## Next steps
 
 - Scan a client account by [assuming a role](authentication.md#assume-role).
 - Scan [multiple accounts at once](usage.md#scan-multiple-accounts).
+- Include EKS with [`--kubernetes`](eks-access.md), or keep the default explicit
+  account-only scope.
 - Produce a branded [PDF deliverable](reports.md#pdf) with `--pdf --client-name "Acme Corp"`.
 - Add SentryHive to [CI as a gate](ci-cd.md).

@@ -74,10 +74,15 @@ def test_build_report_summary_counts_and_top_risks():
     assert report.severity_counts["Critical"] == 1
     assert report.status_counts["fail"] == 1
     assert report.status_counts["pass"] == 1
+    assert report.failure_counts["Critical"] == 1
+    assert report.failure_counts["Low"] == 0
+    assert report.failed_total == 1
     assert len(report.top_risks) == 1  # only the failing one
     assert report.top_risks[0].severity is Severity.CRITICAL
     names = {s.name: s.status for s in report.scanners}
     assert names["ash"] == "skipped"
+    assert report.has_incomplete_scanners is True
+    assert report.to_dict()["summary"]["scan_complete"] is False
 
 
 def test_build_report_marks_scanner_errors():

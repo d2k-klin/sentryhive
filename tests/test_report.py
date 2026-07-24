@@ -49,6 +49,23 @@ def test_html_is_self_contained_and_has_findings(tmp_path):
     assert "<style>" in html  # inline CSS, no external assets
     assert "S3 bucket public" in html
     assert "123456789012" in html
+    assert "OSS SentryHive" in html
+    assert "Created by Mr. D" in html
+    assert '<option value="fail" selected>Failures</option>' in html
+    assert "Unified evidence register" in html
+
+
+def test_html_escapes_scanner_controlled_text():
+    report = _sample_report()
+    report.findings[0].title = '<script>alert("x")</script>'
+    report.findings[0].description = '<img src=x onerror="alert(1)">'
+
+    from sentryhive.report.generator import render_html
+
+    html = render_html(report)
+    assert '<script>alert("x")</script>' not in html
+    assert "&lt;script&gt;" in html
+    assert "<img src=x" not in html
 
 
 def test_json_is_machine_readable(tmp_path):

@@ -6,15 +6,17 @@ How SentryHive turns AWS credentials into one consolidated report. This is the
 ## Pipeline
 
 ```
-AWS creds → CLI → auth (STS verify) ─┬─ Prowler ───────┐
-            (per account)            ├─ Cloudsplaining ─┤ each → normalized Findings
-                                     ├─ hardeneks (opt) ─┤
-                                     └─ ASH (opt) ───────┘
+AWS creds → CLI → auth (STS verify) ─┬─ Prowler ────────┐
+            (per account)            ├─ Cloudsplaining ──┤
+                                     └─ CloudFox ────────┤
+Kubernetes choice + RBAC ────────────┬─ HardenEKS ───────┤ each → normalized Findings
+                                     └─ Kubescape ───────┤
+Local source (optional) ──────────────── ASH ────────────┘
                                               ↓
                                   Aggregator: dedup + rank + compliance posture
                                               ↓
                           Report generator → HTML · PDF · Markdown · JSON
-                          (multi-account: per-account reports + roll-up)
+                          (one artifact set for the full engagement)
 ```
 
 ## Modules
@@ -26,7 +28,7 @@ AWS creds → CLI → auth (STS verify) ─┬─ Prowler ───────�
 | [`scanners/`](../sentryhive/scanners) | One wrapper per tool behind a common `Scanner` interface, plus a registry. |
 | [`normalize.py`](../sentryhive/normalize.py) | Per-tool parsers → the unified `Finding` schema. |
 | [`models.py`](../sentryhive/models.py) | `Finding`, `Severity`, compliance-framework parsing. |
-| [`aggregate.py`](../sentryhive/aggregate.py) | Dedup, ranking, compliance posture, IAM highlights, roll-up. |
+| [`aggregate.py`](../sentryhive/aggregate.py) | Dedup, ranking, compliance posture, IAM highlights, engagement roll-up. |
 | [`report/`](../sentryhive/report) | Jinja2 templates + generator (HTML/MD/JSON/PDF). |
 
 ## Unified finding schema
@@ -36,14 +38,19 @@ aggregator and report layer never care which tool produced a finding.
 
 ```python
 Finding(
-    tool, check, title, description,
-    severity,            # Severity enum (Info..Critical)
-    resource, service, region,
-    status,              # fail | pass | info
+    tool,
+    check,
+    title,
+    description,
+    severity,  # Severity enum (Info..Critical)
+    resource,
+    service,
+    region,
+    status,  # fail | pass | info
     remediation,
-    compliance_refs,     # ["CIS:2.1.5", "PCI-DSS:1.3.1", ...]
+    compliance_refs,  # ["CIS:2.1.5", "PCI-DSS:1.3.1", ...]
     account_id,
-    id,                  # stable fingerprint for dedup
+    id,  # stable fingerprint for dedup
 )
 ```
 
@@ -55,15 +62,17 @@ best-effort and unmappable data degrades to sensible defaults rather than raisin
 ```python
 class Scanner:
     name: str
-    binary: str           # CLI that must be on PATH
-    requires_aws: bool    # live-account vs local-files
+    binary: str  # CLI that must be on PATH
+    requires_aws: bool  # live-account vs local-files
 
-    def run(self, ctx, workdir) -> ScanResult: ...   # base: availability + version + error handling
-    def _scan(self, ctx, workdir) -> ScanResult: ... # subclass implements
+    def run(self, ctx, workdir) -> ScanResult: ...  # base: availability + version + error handling
+    def _scan(self, ctx, workdir) -> ScanResult: ...  # subclass implements
 ```
 
 The base class handles "tool not installed" (→ `skipped`), version capture, and
-exception isolation so **one scanner failing never aborts the run**.
+exception isolation so one scanner failure does not prevent the remaining scanners
+or report generation from completing. The final command exits `1` after writing the
+incomplete report.
 
 ## Aggregation
 
@@ -74,17 +83,19 @@ exception isolation so **one scanner failing never aborts the run**.
 3. **Compliance posture** — pass/fail tallied per framework from `compliance_refs`.
 4. **IAM highlights** — privilege-escalation/exposure findings surfaced for the exec summary.
 
-## Multi-account & roll-up
+## Engagement roll-up
 
-`auth.build_contexts` yields one verified context per `--role-arn`. Each account
-produces its own report; `aggregate.build_rollup` combines them into a cross-account
-view (per-account reports under `reports/<account-id>/`, roll-up at `reports/`).
+`auth.build_contexts` yields one verified context per `--role-arn`. Account,
+Kubernetes, and optional local-source results are aggregated in memory.
+`aggregate.build_rollup` preserves account/resource provenance while the CLI writes
+one final artifact set to `reports/`.
 
 ## Report generation
 
-The branded HTML is the single source of truth. PDF reuses it via the template's
-`@media print` rules (cover page, page numbers, scope page), rendered locally by
-WeasyPrint (default) or Chromium. Markdown and JSON are separate templates/serializers.
+The branded HTML is the single source of truth. It keeps all evidence and defaults to
+failure filtering. PDF reuses it via `@media print`, rendering an executive summary
+and bounded failure register rather than thousands of pass rows. Markdown contains
+the actionable failure detail; JSON retains every normalized record.
 
 ## Adding a scanner
 
@@ -94,5 +105,6 @@ WeasyPrint (default) or Chromium. Markdown and JSON are separate templates/seria
 4. Add the tool to the [Dockerfile](../Dockerfile).
 5. Add a parser test with a fixture.
 
-Nothing in the aggregator, report layer, or CLI needs to change. See
+The common aggregator and report schema normally need no changes. Update the CLI
+listing/default set and documentation when the scanner is exposed to users. See
 [CONTRIBUTING.md](../CONTRIBUTING.md).

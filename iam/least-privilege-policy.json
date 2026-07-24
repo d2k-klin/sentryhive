@@ -19,7 +19,21 @@
         "iam:GetAccountPasswordPolicy",
         "iam:GetAccountSummary",
         "iam:GetCredentialReport",
-        "iam:ListAccountAliases"
+        "iam:ListAccountAliases",
+        "iam:SimulatePrincipalPolicy"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SentryHiveCloudFoxCoverage",
+      "Effect": "Allow",
+      "Action": [
+        "apprunner:DescribeService",
+        "apprunner:ListServices",
+        "grafana:DescribeWorkspace",
+        "grafana:ListWorkspaces",
+        "lambda:GetFunctionUrlConfig",
+        "lightsail:GetContainerServices"
       ],
       "Resource": "*"
     },

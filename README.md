@@ -8,7 +8,7 @@
 [![Docs](https://img.shields.io/badge/docs-docs%2F-blue.svg)](docs/index.md)
 [![Read-only](https://img.shields.io/badge/AWS-read--only-green.svg)](docs/iam-permissions.md)
 
-SentryHive is built for **security consultants and auditors**. It orchestrates several open-source AWS security scanners behind **one command** and merges their output into **one consolidated, evidence-grade report** (branded HTML + Markdown + JSON) you can hand a client as a deliverable. No four-toolchain install nightmare, no four output formats to reconcile.
+SentryHive is built for **security consultants and auditors**. It orchestrates several open-source AWS and Kubernetes security scanners behind **one command** and merges their output into **one consolidated, evidence-grade report** (branded HTML + Markdown + JSON) you can hand a client as a deliverable.
 
 ```bash
 docker compose run --rm sentryhive scan \
@@ -25,7 +25,7 @@ ScoutSuite — historically the go-to for a single portable HTML audit report �
 
 1. **Zero-setup** — one Docker image bundles every scanner. You install nothing but Docker.
 2. **Evidence-grade report** — branded, self-contained HTML with scan metadata, compliance posture per framework, and the IAM privilege-escalation takeover narrative front and center.
-3. **Cross-account first** — assume-role with `--external-id` is the primary path; scan **many client accounts in one run** with a per-account report plus a roll-up.
+3. **Cross-account first** — assume-role with `--external-id` is the primary path; scan **many client accounts in one run** and receive one engagement-wide report.
 4. **Trust-first** — ships least-privilege IAM (CFN + Terraform) for the client to deploy; **no data leaves your machine**.
 5. **CI-native** — drop it into any pipeline as a security gate.
 
@@ -35,10 +35,15 @@ ScoutSuite — historically the go-to for a single portable HTML audit report �
 |------|--------------|------|
 | [Prowler](https://github.com/prowler-cloud/prowler) | 500+ checks mapped to CIS, PCI-DSS, SOC2, ISO-27001, HIPAA, NIST 800-53 | **core** |
 | [Cloudsplaining](https://github.com/salesforce/cloudsplaining) | IAM policy risk — over-privilege, priv-esc, exposure | **core** |
-| [hardeneks](https://github.com/aws-samples/hardeneks) | EKS best-practice checks | auto-detected |
+| [CloudFox](https://github.com/BishopFox/cloudfox) | AWS attack surface, public exposure, role trusts, admin workloads | **core** |
+| [hardeneks](https://github.com/aws-samples/hardeneks) | AWS EKS best-practice checks | opt-in (`--kubernetes`) |
+| [Kubescape](https://github.com/kubescape/kubescape) | Kubernetes posture and misconfiguration controls | opt-in (`--kubernetes`) |
 | [ASH](https://github.com/awslabs/automated-security-helper) | Static analysis of IaC/code (Terraform, CFN, secrets) | opt-in (`--scanners ...,ash`) |
 
-The default scan runs **Prowler + Cloudsplaining**. `hardeneks` fires automatically when the account actually runs EKS (disable with `--no-auto-eks`). ASH scans local code/IaC and is opt-in.
+The default scan runs **Prowler + Cloudsplaining + CloudFox**. Kubernetes is an
+explicit choice: pass `--kubernetes` to run both HardenEKS and Kubescape, or
+`--no-kubernetes` to make the account-only scope explicit. ASH scans local code/IaC
+and is opt-in.
 
 ## Quick start (Docker — recommended)
 
@@ -52,7 +57,7 @@ docker compose run --rm sentryhive scan \
   --role-arn arn:aws:iam::123456789012:role/SentryHiveAudit \
   --external-id shared-secret --client-name "Acme Corp"
 
-# Multi-account engagement: per-account reports + a roll-up
+# Multi-account engagement: one combined report
 docker compose run --rm sentryhive scan \
   --role-arn arn:aws:iam::111111111111:role/SentryHiveAudit \
   --role-arn arn:aws:iam::222222222222:role/SentryHiveAudit \
@@ -60,10 +65,12 @@ docker compose run --rm sentryhive scan \
 
 # Or a local profile, picking scanners + regions
 docker compose run --rm sentryhive scan --profile prod \
-  --scanners prowler,cloudsplaining --regions eu-central-1,us-east-1
+  --scanners prowler,cloudsplaining,cloudfox --regions eu-central-1,us-east-1
 ```
 
-Single account → reports land in `./reports/`. Multiple accounts → `./reports/<account-id>/` per account plus a roll-up in `./reports/`.
+Every run writes one artifact set to `./reports/`: `report.html`, `report.md`, and
+`findings.json` (plus `report.pdf` when requested). Multi-account, Kubernetes, and
+ASH evidence are sections in that same report.
 
 ## Local install (pip)
 
@@ -76,13 +83,20 @@ sentryhive scanners          # list available scanners
 sentryhive --help
 ```
 
-## Authentication (cross-account first)
+## Authentication: credentials versus roles
 
-Resolved in priority order — assume-role is primary for the consultant workflow:
+You always need a valid AWS credential source. You do **not** always need a role:
 
-1. **Assume role** — `--role-arn ...` (+ `--external-id`, cross-account). Repeat `--role-arn` to scan several accounts in one run.
-2. **Profile** — `--profile client-x` (reads `~/.aws/credentials`)
-3. **Static keys** — env `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`
+- **Scanning the account your credentials already belong to:** a profile, environment
+  keys, EC2/ECS task role, or CI workload credentials are sufficient if that principal
+  has the documented read permissions. Do not add `--role-arn`.
+- **Scanning a client/cross-account target:** the base credentials also need
+  `sts:AssumeRole` permission, and the client deploys a trusted audit role. Pass its
+  ARN with `--role-arn`; add `--external-id` when the trust policy requires it.
+- **Kubernetes/EKS:** add `--kubernetes`. If SentryHive creates the kubeconfig, the AWS
+  principal needs `eks:DescribeCluster`; either way it also needs Kubernetes RBAC and
+  network reachability to the cluster API. SentryHive still requires an AWS credential
+  source for its verified AWS/EKS context even when you provide `--kubeconfig`.
 
 SentryHive runs `sts:GetCallerIdentity` per account and prints the account/identity it is about to scan, with a confirmation prompt unless you pass `--yes`.
 
@@ -112,8 +126,9 @@ sentryhive scan [OPTIONS]
   --external-id TEXT      External ID for role assumption
   --profile TEXT          AWS profile name
   --regions TEXT          Comma-separated regions (eu-central-1,us-east-1)
-  --scanners TEXT         Account scanners (default: prowler,cloudsplaining)
-  --eks                   Run EKS hardening (opt-in; needs in-cluster access)
+  --scanners TEXT         Account scanners (default: prowler,cloudsplaining,cloudfox)
+  --kubernetes / --no-kubernetes
+                          Include/exclude EKS checks (HardenEKS + Kubescape)
   --clusters TEXT         EKS clusters to target (default: all detected)
   --kubeconfig PATH       kubeconfig for EKS access
   --source-dir TEXT       Directory ASH scans (default: CWD)
@@ -128,22 +143,25 @@ sentryhive scan [OPTIONS]
   --scanner-output        Stream raw scanner output; heartbeats are shown by default
 ```
 
-> EKS hardening is a **separate, opt-in phase** — unlike the IAM-only scanners it
-> needs in-cluster RBAC access. The default run only *detects and notes* EKS
-> clusters. See [docs/eks-access.md](docs/eks-access.md).
+> Kubernetes assessment is a **separate, opt-in phase** because it needs
+> in-cluster RBAC and API-server network access. With `--no-kubernetes` (the
+> default), SentryHive does not enumerate or connect to clusters. See
+> [docs/eks-access.md](docs/eks-access.md).
 
-Exit codes: `0` success · `1` auth failure · `2` bad arguments · `3` `--fail-on` threshold breached.
+Exit codes: `0` success · `1` authentication or scanner failure · `2` bad arguments ·
+`3` `--fail-on` threshold breached.
 
 ## Reports — the deliverable
 
 Per scan:
 
-- **`report.html`** — self-contained, **client-branded** (`--client-name`, `--logo`), severity-colored, filterable. Up top: scan-metadata/evidence block (accounts, identity, SentryHive + scanner versions, timestamp), **compliance posture per framework**, and **IAM privilege-escalation highlights**. See [`examples/sample-report.html`](examples/sample-report.html).
+- **`report.html`** — self-contained, **client-branded** (`--client-name`, `--logo`), fail-first and filterable. It combines account, attack-surface, Kubernetes, and optional source findings; pass evidence and observations remain available without inflating risk totals.
 - **`report.pdf`** — the client deliverable: dated, page-numbered, branded, with a cover page and a scope & methodology page. Add with `--pdf`. Rendered locally via WeasyPrint (no browser, no network). See [`examples/sample-report.pdf`](examples/sample-report.pdf) and [docs/reports.md](docs/reports.md).
 - **`report.md`** — for PR comments and CI artifacts.
 - **`findings.json`** — machine-readable, the unified schema, for piping elsewhere.
 
-Multi-account runs produce a per-account report under `reports/<account-id>/` plus a cross-account roll-up at `reports/`.
+Every run produces exactly one report set. Findings preserve `account_id`, tool, region,
+and cluster/resource context so the unified register remains traceable.
 
 ### Unified finding schema
 
@@ -176,14 +194,18 @@ A reusable workflow lives at [`.github/workflows/scan-example.yml`](.github/work
 ## Architecture
 
 ```
-AWS creds → CLI → auth (STS verify) → [Prowler│Cloudsplaining│hardeneks│ASH]
-                                              ↓ each → normalized findings
+AWS creds → CLI → auth (STS verify) → [Prowler│Cloudsplaining│CloudFox]
+Kubernetes choice + RBAC ───────────→ [HardenEKS│Kubescape]
+Local source (optional) ────────────→ [ASH]
+                                              ↓ normalized findings
                                        Aggregator (dedup + rank + posture)
                                               ↓
                               Report generator (HTML + PDF + MD + JSON)
 ```
 
-Each scanner is wrapped behind a common `Scanner.run()` interface, so adding a fifth tool is one wrapper module + one registry entry. Full write-up in [docs/architecture.md](docs/architecture.md).
+Each scanner is wrapped behind a common `Scanner.run()` interface, so adding another
+tool is one wrapper module + one registry entry. Full write-up in
+[docs/architecture.md](docs/architecture.md).
 
 ## Documentation
 

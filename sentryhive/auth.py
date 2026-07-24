@@ -137,8 +137,8 @@ def build_contexts(
 def discover_eks_clusters(ctx: AwsContext) -> list[str]:
     """List EKS cluster names across the context's regions (best-effort).
 
-    Used to auto-enable the hardeneks scanner only when a client actually runs EKS.
-    Failures (no EKS perms, no clusters) return an empty list rather than raising.
+    Called only after the user opts into the Kubernetes phase. Failures (no EKS
+    permissions, no clusters) return an empty list rather than raising.
     """
     clusters: list[str] = []
     for region in ctx.regions:

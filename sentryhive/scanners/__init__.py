@@ -1,6 +1,6 @@
 """Scanner registry — maps names to scanner factories.
 
-Adding a 5th scanner is one entry here plus a wrapper module.
+Adding a scanner is one entry here plus a wrapper module.
 """
 
 from __future__ import annotations
@@ -9,15 +9,19 @@ from collections.abc import Callable
 
 from sentryhive.scanners.ash import AshScanner
 from sentryhive.scanners.base import Scanner, ScanResult, ScanStatus, session_env
+from sentryhive.scanners.cloudfox import CloudfoxScanner
 from sentryhive.scanners.cloudsplaining import CloudsplainingScanner
 from sentryhive.scanners.hardeneks import HardeneksScanner
+from sentryhive.scanners.kubescape import KubescapeScanner
 from sentryhive.scanners.prowler import ProwlerScanner
 
 #: Registered scanners. Values are factories so per-run options can be injected.
 REGISTRY: dict[str, Callable[..., Scanner]] = {
     "prowler": ProwlerScanner,
     "cloudsplaining": CloudsplainingScanner,
+    "cloudfox": CloudfoxScanner,
     "hardeneks": HardeneksScanner,
+    "kubescape": KubescapeScanner,
     "ash": AshScanner,
 }
 
@@ -37,7 +41,7 @@ def build_scanners(
         factory = REGISTRY.get(name)
         if factory is None:
             raise KeyError(f"unknown scanner '{name}'. Available: {', '.join(ALL_SCANNERS)}")
-        if name == "hardeneks":
+        if name in ("hardeneks", "kubescape"):
             scanners.append(factory(cluster=eks_cluster, kubeconfig=kubeconfig))
         elif name == "ash":
             scanners.append(factory(source_dir=source_dir))

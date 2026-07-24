@@ -18,7 +18,7 @@ behaviors can also be set via environment variables — useful in CI and Docker.
 
 | Variable | Equivalent flag | Purpose |
 |----------|-----------------|---------|
-| `SENTRYHIVE_EKS_CLUSTER` | `--clusters` (single) | Default EKS cluster for hardeneks. |
+| `SENTRYHIVE_EKS_CLUSTER` | `--clusters` (single) | Default EKS cluster for HardenEKS/Kubescape. |
 | `SENTRYHIVE_SOURCE_DIR` | `--source-dir` | Default directory for ASH. |
 | `KUBECONFIG` | `--kubeconfig` | kubeconfig path for EKS access. |
 
