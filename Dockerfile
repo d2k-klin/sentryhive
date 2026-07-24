@@ -11,12 +11,6 @@ ARG CLOUDFOX_VERSION=2.0.5
 ARG KUBESCAPE_VERSION=4.0.11
 ARG AWSCLI_VERSION=2.36.7
 ARG KUBECTL_VERSION=v1.36.3
-ARG PROWLER_VERSION=5.33.1
-ARG CLOUDSPLAINING_VERSION=0.9.1
-ARG HARDENEKS_VERSION=1.1.0
-ARG ASH_VERSION=11.0.2
-ARG AWSCLI_VERSION=2.35.21
-ARG KUBECTL_VERSION=v1.36.2
 
 LABEL org.opencontainers.image.title="SentryHive" \
       org.opencontainers.image.description="AWS security scanning toolkit — one image, one report." \
