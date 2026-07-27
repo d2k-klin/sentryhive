@@ -10,6 +10,13 @@ change findings output.
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-07-27
+
+### Fixed
+- Scanner integrity verification now accepts CloudFox's actual `cloudfox version X.Y.Z`
+  output format instead of requiring a `v` prefix.
+- The runtime `sentryhive --version` value now stays aligned with the package version.
+
 ## [0.0.3] - 2026-07-24
 
 ### Added
@@ -68,7 +75,8 @@ Initial release — a working v1 for security consultants and auditors.
 - Scanning and PDF generation run fully locally — no scan data leaves the operator's machine.
 - External ID is supported for cross-account role assumption.
 
-[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v0.0.3...HEAD
+[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v0.0.4...HEAD
+[0.0.4]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.4
 [0.0.3]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.3
 [0.0.2]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.2
 [0.0.1]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.1

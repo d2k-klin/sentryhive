@@ -67,7 +67,7 @@ check_python_tool "prowler" prowler prowler "$(pin PROWLER_VERSION)"
 check_python_tool "cloudsplaining" cloudsplaining cloudsplaining "$(pin CLOUDSPLAINING_VERSION)"
 check_python_tool "hardeneks" hardeneks hardeneks "$(pin HARDENEKS_VERSION)"
 check_python_tool "ash" ash automated-security-helper "$(pin ASH_VERSION)"
-check_binary_version "cloudfox" cloudfox "v$(pin CLOUDFOX_VERSION)" --version
+check_binary_version "cloudfox" cloudfox "$(pin CLOUDFOX_VERSION)" --version
 check_binary_version "kubescape" kubescape "$(pin KUBESCAPE_VERSION)" version
 check_binary_version "aws-cli" aws "aws-cli/$(pin AWSCLI_VERSION)" --version
 check_binary_version "kubectl" kubectl "$(pin KUBECTL_VERSION)" version --client
