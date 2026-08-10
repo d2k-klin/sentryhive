@@ -2,14 +2,14 @@
 FROM python:3.12-slim
 
 # Pinned tool versions — bumped weekly by .github/workflows/tool-watch.yml.
-ARG PROWLER_VERSION=5.36.0
-# 0.9.x requires boto3>=1.41, while Prowler 5.36.0 pins boto3==1.40.61.
+ARG PROWLER_VERSION=5.38.0
+# 0.9.x requires boto3>=1.41, while Prowler 5.38.0 pins boto3==1.40.61.
 ARG CLOUDSPLAINING_VERSION=0.8.2
 ARG HARDENEKS_VERSION=1.1.1
 ARG ASH_VERSION=3.5.8
 ARG CLOUDFOX_VERSION=2.0.5
 ARG KUBESCAPE_VERSION=4.0.11
-ARG AWSCLI_VERSION=2.36.7
+ARG AWSCLI_VERSION=2.36.19
 ARG KUBECTL_VERSION=v1.36.3
 
 LABEL org.opencontainers.image.title="SentryHive" \
