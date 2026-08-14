@@ -20,7 +20,7 @@ network:
     - defaults
     - github
     - python
-    - "dl.k8s.io"
+    - containers
     - "awscli.amazonaws.com"
 timeout-minutes: 45
 safe-outputs:
@@ -69,14 +69,16 @@ matching wrapper in `sentryhive/scanners/` (`prowler.py`, `cloudsplaining.py`,
 6. Validate before finishing:
    - `pip install -e ".[dev]"` then `ruff check .` and `ruff format --check .`
    - `pytest --cov=sentryhive --cov-report=term-missing`
-   - Install the newly-pinned scanner CLI versions into a fresh venv
-     (matching how the Dockerfile installs them) and run
+   - Install the newly-pinned scanner CLI versions into fresh venvs
+     (matching the Dockerfile's Prowler/HardenEKS, Cloudsplaining, and ASH split) and run
      `./scripts/verify-scanners.sh` to confirm they're still on `PATH` and
      reporting versions correctly.
-   - Run `pip-audit` against both the app and scanner environments. The scanner
-     environment may temporarily ignore `GHSA-537c-gmf6-5ccf` only while the
-     latest Prowler still pins `cryptography==46.0.7`; remove the exception as
-     soon as Prowler permits `cryptography>=48.0.1`.
+   - Run `pip-audit` against the app and all scanner environments. The Prowler
+     environment may temporarily ignore `GHSA-537c-gmf6-5ccf`,
+     `PYSEC-2026-3552`, `PYSEC-2026-3553`, `PYSEC-2026-3554`, and
+     `PYSEC-2026-3628` only while the newest resolvable Prowler pins
+     `cryptography==46.0.7` and `h2==4.3.0`; remove each exception as soon as
+     Prowler publishes compatible fixed pins.
 7. If validation passes, commit your changes so a PR titled
    "tools: bump toolname x.y.z -> x.y.z" (or similar for multiple tools) gets
    opened, with a description listing each bump, a link to its release

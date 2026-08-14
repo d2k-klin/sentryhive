@@ -67,8 +67,14 @@ jobs:
           "$RUNNER_TEMP/scanner-venv/bin/pip" install --upgrade pip "setuptools>=83"
           "$RUNNER_TEMP/scanner-venv/bin/pip" install \
             "prowler==$PROWLER_VERSION" \
-            "cloudsplaining==$CLOUDSPLAINING_VERSION" \
-            "hardeneks==$HARDENEKS_VERSION" \
+            "hardeneks==$HARDENEKS_VERSION"
+          python -m venv "$RUNNER_TEMP/cloudsplaining-venv"
+          "$RUNNER_TEMP/cloudsplaining-venv/bin/pip" install --upgrade pip
+          "$RUNNER_TEMP/cloudsplaining-venv/bin/pip" install \
+            "cloudsplaining==$CLOUDSPLAINING_VERSION"
+          python -m venv "$RUNNER_TEMP/ash-venv"
+          "$RUNNER_TEMP/ash-venv/bin/pip" install --upgrade pip
+          "$RUNNER_TEMP/ash-venv/bin/pip" install \
             "automated-security-helper @ git+https://github.com/awslabs/automated-security-helper.git@v$ASH_VERSION"
           mkdir -p "$RUNNER_TEMP/bin"
           curl -sSL "https://github.com/BishopFox/cloudfox/releases/download/v${CLOUDFOX_VERSION}/cloudfox-linux-amd64.zip" \
@@ -79,6 +85,8 @@ jobs:
             -o "$RUNNER_TEMP/bin/kubescape"
           chmod +x "$RUNNER_TEMP/bin/kubescape"
           echo "$RUNNER_TEMP/scanner-venv/bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/cloudsplaining-venv/bin" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/ash-venv/bin" >> "$GITHUB_PATH"
       - name: Install pinned AWS CLI and kubectl
         run: |
           AWSCLI_VERSION="$(grep -E '^ARG AWSCLI_VERSION=' Dockerfile | cut -d= -f2)"
@@ -98,8 +106,18 @@ jobs:
         run: |
           pip install pip-audit
           SCANNER_SITE="$("$RUNNER_TEMP/scanner-venv/bin/python" -c 'import site; print(site.getsitepackages()[0])')"
-          # Prowler 5.36.0 pins cryptography 46.0.7; remove this exception as soon as upstream permits 48.0.1+.
-          pip-audit --path "$SCANNER_SITE" --ignore-vuln GHSA-537c-gmf6-5ccf
+          CLOUDSPLAINING_SITE="$("$RUNNER_TEMP/cloudsplaining-venv/bin/python" -c 'import site; print(site.getsitepackages()[0])')"
+          ASH_SITE="$("$RUNNER_TEMP/ash-venv/bin/python" -c 'import site; print(site.getsitepackages()[0])')"
+          # Prowler 5.37.0 pins these vulnerable versions; remove each exception
+          # when a resolvable release permits cryptography>=50.0.0 and h2>=4.4.1.
+          pip-audit --path "$SCANNER_SITE" \
+            --ignore-vuln GHSA-537c-gmf6-5ccf \
+            --ignore-vuln PYSEC-2026-3552 \
+            --ignore-vuln PYSEC-2026-3553 \
+            --ignore-vuln PYSEC-2026-3554 \
+            --ignore-vuln PYSEC-2026-3628
+          pip-audit --path "$CLOUDSPLAINING_SITE"
+          pip-audit --path "$ASH_SITE"
 
   build:
     runs-on: ubuntu-latest

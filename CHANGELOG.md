@@ -10,6 +10,25 @@ change findings output.
 
 ## [Unreleased]
 
+## [0.0.5] - 2026-08-14
+
+### Changed
+
+- Upgraded Prowler to 5.37.0, Cloudsplaining to 0.9.1, ASH to 3.5.9,
+  Kubescape to 4.0.12, and AWS CLI to 2.36.23.
+- Isolated Cloudsplaining and ASH from Prowler's incompatible dependency pins.
+- Held Prowler below 5.38.0 because that release's cryptography requirements are
+  internally inconsistent with its pinned Alibaba Cloud SDK.
+- Updated direct Python dependencies and the pinned CodeQL and Docker login actions.
+
+### Security
+
+- Kept the Prowler cryptography audit exception scoped to its isolated environment;
+  ASH now installs the patched cryptography 50 release independently.
+- Documented the five temporary audit exceptions forced by Prowler 5.37.0's exact
+  cryptography and h2 pins; Cloudsplaining and ASH audit cleanly.
+- Updated and verified the SHA-256 pins for both Kubescape Linux architectures.
+
 ## [0.0.4] - 2026-07-27
 
 ### Fixed
@@ -75,7 +94,8 @@ Initial release — a working v1 for security consultants and auditors.
 - Scanning and PDF generation run fully locally — no scan data leaves the operator's machine.
 - External ID is supported for cross-account role assumption.
 
-[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v0.0.4...HEAD
+[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v0.0.5...HEAD
+[0.0.5]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.5
 [0.0.4]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.4
 [0.0.3]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.3
 [0.0.2]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.2

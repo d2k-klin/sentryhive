@@ -27,8 +27,12 @@ check_python_tool() {
     return
   fi
 
-  local actual
-  actual="$("$SCANNER_PYTHON" -c "from importlib.metadata import version; print(version('$package'))")"
+  local actual tool_python
+  tool_python="$(dirname "$(command -v "$cmd")")/python"
+  if [[ ! -x "$tool_python" ]]; then
+    tool_python="$SCANNER_PYTHON"
+  fi
+  actual="$("$tool_python" -c "from importlib.metadata import version; print(version('$package'))")"
   if [[ "$actual" == "$expected" ]]; then
     echo "OK — $actual"
   else

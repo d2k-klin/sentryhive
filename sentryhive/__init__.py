@@ -4,4 +4,4 @@ Orchestrates best-in-class open-source scanners and produces one consolidated,
 severity-ranked report.
 """
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"

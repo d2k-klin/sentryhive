@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling>=1.31.0"]
+requires = ["hatchling>=1.32.0"]
 build-backend = "hatchling.build"
 
 [project]
 name = "sentryhive"
-version = "0.0.4"
+version = "0.0.5"
 description = "Clone, point it at an AWS account, and get a clean security report from best-in-class open-source scanners."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -21,9 +21,9 @@ classifiers = [
     "Topic :: Security",
 ]
 dependencies = [
-    "typer>=0.27.0",
+    "typer>=0.27.1",
     "rich>=15.0.0",
-    "boto3>=1.43.55",
+    "boto3>=1.43.71",
     "jinja2>=3.1.6",
 ]
 
@@ -36,7 +36,7 @@ dev = [
     "build>=1.5.0",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
-    "ruff>=0.16.0",
+    "ruff>=0.16.3",
     "pip-audit>=2.10.1",
 ]
 
