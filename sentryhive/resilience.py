@@ -27,6 +27,13 @@ _RESILIENCE_SERVICES = frozenset(
     }
 )
 
+#: Terms that mark a check as being about *who can read* a backup rather than whether it
+#: can restore. Confidentiality controls on backup resources are not recovery evidence:
+#: `documentdb_cluster_public_snapshot` is an exposure finding that happens to say
+#: "snapshot", and `..._replication_group_auth_enabled` is authentication that happens to
+#: say "replication". Checked before the include terms below.
+_EXCLUDED_TERMS = ("public", "auth")
+
 #: Terms that mark a check as recovery-related.
 # ponytail: substring match over check ids, not a curated per-check allowlist. Scanner
 # check ids are already self-describing snake_case, and a pinned list would rot on every
@@ -56,4 +63,6 @@ def is_resilience(finding: Finding) -> bool:
     if finding.service.lower() not in _RESILIENCE_SERVICES:
         return False
     haystack = f"{finding.check} {finding.title}".lower()
+    if any(term in haystack for term in _EXCLUDED_TERMS):
+        return False
     return any(term in haystack for term in _RESILIENCE_TERMS)

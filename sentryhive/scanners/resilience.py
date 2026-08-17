@@ -169,8 +169,33 @@ class ResilienceScanner(Scanner):
         if vaults is not None:
             out.extend(self._check_vault_lock(vaults, region, ctx))
 
-        # Only meaningful once AWS Backup is in use; absence is already reported above.
-        if plans:
+        if plans is None:
+            # Plans were unreadable, so job and restore evidence cannot be judged either.
+            # Falling through silently would drop the restore-testing control from the report
+            # entirely — the one control an auditor is most likely to look for.
+            cascade = "backup plans could not be read"
+            out.append(
+                self._unknown(
+                    check="resilience-backup-freshness",
+                    control="recent backup jobs",
+                    reason=cascade,
+                    region=region,
+                    ctx=ctx,
+                    refs=_BACKUP_REFS,
+                )
+            )
+            out.append(
+                self._unknown(
+                    check="resilience-restore-tested",
+                    control="restore testing",
+                    reason=cascade,
+                    region=region,
+                    ctx=ctx,
+                    refs=_RESTORE_REFS,
+                )
+            )
+        # Otherwise only meaningful once AWS Backup is in use; absence is reported above.
+        elif plans:
             window = dt.datetime.now(dt.timezone.utc) - dt.timedelta(hours=2 * self.rpo_hours)
             jobs = self._fetch(
                 out,
@@ -615,23 +640,34 @@ class ResilienceScanner(Scanner):
             return fn()
         except (ClientError, BotoCoreError) as exc:
             reason = "access denied" if _is_denied(exc) else str(exc)
-            out.append(
-                self._finding(
-                    check=check,
-                    title=f"Could not verify {control} — {reason}",
-                    description=(
-                        f"SentryHive could not read {control} in {region}, so this control is "
-                        "unknown rather than passing. Grant the read-only permissions in "
-                        "iam/least-privilege-policy.json and re-run."
-                    ),
-                    status="info",
-                    severity=Severity.INFO,
-                    region=region,
-                    ctx=ctx,
-                    refs=refs,
-                )
-            )
+            out.append(self._unknown(check=check, control=control, reason=reason, region=region, ctx=ctx, refs=refs))
             return None
+
+    def _unknown(
+        self,
+        *,
+        check: str,
+        control: str,
+        reason: str,
+        region: str,
+        ctx: AwsContext,
+        refs: list[str],
+    ) -> Finding:
+        """An explicitly unverified control: reported, excluded from posture, never a pass."""
+        return self._finding(
+            check=check,
+            title=f"Could not verify {control} — {reason}",
+            description=(
+                f"SentryHive could not read {control} in {region}, so this control is "
+                "unknown rather than passing. Grant the read-only permissions in "
+                "iam/least-privilege-policy.json and re-run."
+            ),
+            status="info",
+            severity=Severity.INFO,
+            region=region,
+            ctx=ctx,
+            refs=refs,
+        )
 
     def _finding(
         self,

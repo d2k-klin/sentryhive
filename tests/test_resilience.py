@@ -239,6 +239,26 @@ def test_access_denied_yields_info_and_other_checks_still_run():
     assert result.status is ScanStatus.OK
 
 
+def test_unreadable_plans_still_report_restore_testing_as_unknown():
+    """A denied plan read must not silently drop the restore-testing control.
+
+    Regression: `if plans:` treated None (unreadable) the same as [] (none exist), so
+    freshness and restore evidence vanished from the report instead of reporting unknown.
+    """
+    result, by_check = _run(FakeCtx(backup=FakeBackup(deny={"plans"})))
+    for check in ("resilience-backup-plan-exists", "resilience-backup-freshness", "resilience-restore-tested"):
+        assert by_check[check].status == "info", f"{check} must be reported as unknown"
+    assert "could not be read" in by_check["resilience-restore-tested"].title
+    assert result.status is ScanStatus.OK
+
+
+def test_no_plans_at_all_does_not_emit_cascade_unknowns():
+    """Genuinely having no backup plan is a fail, not an unknown — the opposite case."""
+    _, by_check = _run(FakeCtx(backup=FakeBackup(plans=[])))
+    assert by_check["resilience-backup-plan-exists"].status == "fail"
+    assert "resilience-restore-tested" not in by_check
+
+
 def test_unknown_findings_are_excluded_from_compliance_posture():
     from sentryhive.aggregate import compliance_posture
 
@@ -288,6 +308,40 @@ def test_lens_recognizes_other_tools_backup_findings():
     assert is_resilience(versioning)
     assert is_resilience(pitr)
     assert not is_resilience(iam)
+
+
+def test_lens_excludes_confidentiality_checks_on_backup_resources():
+    """Regression from a live scan: 34 of 117 gathered findings were exposure/auth checks.
+
+    Both check ids below are real Prowler output — they matched on "snapshot" and
+    "replication" while actually being about who can read the data, not recovery.
+    """
+    public_snapshot = Finding(
+        tool="prowler",
+        check="prowler-aws-documentdb_cluster_public_snapshot-254038622216-eu-west-1-handyhive-prod-docdb",
+        title="DocumentDB cluster snapshot is not public",
+        description="",
+        service="documentdb",
+        status="pass",
+    )
+    redis_auth = Finding(
+        tool="prowler",
+        check="prowler-aws-elasticache_redis_replication_group_auth_enabled-254038622216-eu-west-1-cache",
+        title="ElastiCache Redis replication group has AUTH enabled",
+        description="",
+        service="elasticache",
+    )
+    assert not is_resilience(public_snapshot)
+    assert not is_resilience(redis_auth)
+
+    # …while the genuine recovery checks from the same scan still land in the section.
+    for check, service in (
+        ("prowler-aws-s3_bucket_cross_region_replication-254038622216-eu-west-1-bucket", "s3"),
+        ("prowler-aws-dynamodb_table_protected_by_backup_plan-254038622216-eu-west-1-table", "dynamodb"),
+        ("prowler-aws-elasticache_redis_cluster_backup_enabled-254038622216-eu-west-1-cache", "elasticache"),
+        ("prowler-aws-documentdb_cluster_backup_enabled-254038622216-eu-west-1-docdb", "documentdb"),
+    ):
+        assert is_resilience(Finding(tool="prowler", check=check, title="", description="", service=service)), check
 
 
 def test_lens_ignores_unrelated_checks_in_resilience_services():

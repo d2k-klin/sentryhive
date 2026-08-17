@@ -10,6 +10,24 @@ change findings output.
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-08-17
+
+### Fixed
+
+- The Backup & recovery section no longer gathers confidentiality checks that merely
+  mention a recovery term. `documentdb_cluster_public_snapshot` (exposure) and
+  `..._replication_group_auth_enabled` (authentication) matched on "snapshot" and
+  "replication"; on a live account they were 34 of 117 gathered findings, nearly all
+  passes, making the section read healthier than the account actually was.
+
+### Security
+
+- Restore-testing and backup-freshness evidence is now reported as **unknown** when
+  backup plans cannot be read, instead of being omitted. Previously an unreadable plan
+  list was treated identically to "no plan exists", so the restore-testing control —
+  the one an auditor is most likely to ask about — disappeared from the report entirely
+  rather than being flagged as unverified.
+
 ## [1.1.0] - 2026-08-17
 
 ### Added
@@ -128,7 +146,8 @@ Initial release — a working v1 for security consultants and auditors.
 - Scanning and PDF generation run fully locally — no scan data leaves the operator's machine.
 - External ID is supported for cross-account role assumption.
 
-[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.1
 [1.1.0]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.0
 [0.0.5]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.5
 [0.0.4]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.4
