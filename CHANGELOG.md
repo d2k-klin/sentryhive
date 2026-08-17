@@ -10,6 +10,23 @@ change findings output.
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-08-17
+
+### Fixed
+
+- A scanner killed by a signal reported a raw negative return code — `endpoints: exit -11`
+  told the operator nothing. Signal deaths are now decoded, so a segfault reads
+  `crashed — killed by SIGSEGV (signal 11)`.
+- CloudFox module failures are now classified as either an access problem the operator
+  can fix or a defect inside CloudFox that they cannot, and each gets its own remedy.
+  Previously any failure carried the IAM hint, which sent operators to check permissions
+  for what was actually an upstream crash.
+- CloudFox 2.0.5 parses IAM policy JSON with a YAML unmarshaller, so a trust policy that
+  is valid JSON but invalid YAML aborts the `role-trusts` module. There is no fixed
+  CloudFox release. SentryHive now names this as an upstream defect, states that
+  compliance, IAM and backup evidence are unaffected, and gives the exact command for a
+  clean run. Documented in [troubleshooting](docs/troubleshooting.md).
+
 ## [1.1.2] - 2026-08-17
 
 ### Fixed
@@ -160,7 +177,8 @@ Initial release — a working v1 for security consultants and auditors.
 - Scanning and PDF generation run fully locally — no scan data leaves the operator's machine.
 - External ID is supported for cross-account role assumption.
 
-[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v1.1.3...HEAD
+[1.1.3]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.3
 [1.1.2]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.2
 [1.1.1]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.1
 [1.1.0]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.0

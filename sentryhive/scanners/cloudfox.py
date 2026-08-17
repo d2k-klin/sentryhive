@@ -10,6 +10,7 @@ from __future__ import annotations
 import glob
 import json
 import os
+import signal
 
 from sentryhive.auth import AwsContext
 from sentryhive.normalize import parse_cloudfox
@@ -30,21 +31,58 @@ _DENIED_MARKERS = (
     "explicit deny",
 )
 
+#: Signatures of a defect inside CloudFox itself rather than anything about the account.
+#: These are not operator-fixable: CloudFox parses IAM policy JSON with a YAML
+#: unmarshaller, so valid JSON that is not valid YAML aborts the module.
+_UPSTREAM_MARKERS = (
+    "unmarshalling yaml",
+    "unmarshaling yaml",
+    "panic:",
+    "runtime error",
+    "invalid memory address",
+    "nil pointer",
+)
+
 _IAM_HINT = "Grant the SentryHiveCloudFoxCoverage permissions in iam/least-privilege-policy.json and re-run."
 
+_UPSTREAM_HINT = (
+    "This is a defect inside CloudFox, not a problem with the account or with SentryHive, "
+    "and no fixed CloudFox release exists yet. Compliance, IAM and backup evidence are "
+    "unaffected — only attack-surface enumeration is partial. For a clean exit, re-run with "
+    "--scanners prowler,cloudsplaining,resilience."
+)
 
-def _failure_reason(proc) -> str:
-    """Why a module failed, taken from the output the process actually produced.
 
-    Previously only the exit code survived, so "endpoints (exit 1)" gave the operator
-    nothing to act on and read like a defect in SentryHive rather than a missing grant.
+def _exit_description(returncode: int) -> str:
+    """Readable process outcome. Python reports signal deaths as a negative returncode,
+    so a raw '-11' reaches the operator as nonsense instead of 'segmentation fault'."""
+    if returncode >= 0:
+        return f"exit {returncode}"
+    try:
+        name = signal.Signals(-returncode).name
+    except ValueError:
+        return f"killed by signal {-returncode}"
+    return f"crashed — killed by {name} (signal {-returncode})"
+
+
+def classify_failure(proc) -> tuple[str, str]:
+    """Return (reason, kind) for a failed module, where kind is access|upstream|unknown.
+
+    The kind decides which remedy the operator is told about: a permissions gap they can
+    fix, versus a scanner defect they cannot.
     """
     text = (proc.stderr or proc.stdout or "").strip()
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     tail = " / ".join(lines[-3:])[:MAX_REASON_CHARS]
-    if any(marker in text.lower() for marker in _DENIED_MARKERS):
-        return f"access denied — {tail}" if tail else "access denied"
-    return tail or f"exit {proc.returncode}"
+    lowered = text.lower()
+
+    if any(marker in lowered for marker in _DENIED_MARKERS):
+        return (f"access denied — {tail}" if tail else "access denied"), "access"
+
+    outcome = _exit_description(proc.returncode)
+    if any(marker in lowered for marker in _UPSTREAM_MARKERS) or proc.returncode < 0:
+        return (f"{outcome} — {tail}" if tail else outcome), "upstream"
+    return (f"{outcome} — {tail}" if tail else outcome), "unknown"
 
 
 class CloudfoxScanner(Scanner):
@@ -61,6 +99,7 @@ class CloudfoxScanner(Scanner):
         os.makedirs(out_dir, exist_ok=True)
         env = session_env(ctx)
         failures: list[str] = []
+        kinds: set[str] = set()
 
         for module in self.modules:
             proc = self._exec(
@@ -79,33 +118,29 @@ class CloudfoxScanner(Scanner):
                 progress_label=f"{self.name}:{module}",
             )
             if proc.returncode != 0:
-                failures.append(f"{module}: {_failure_reason(proc)}")
+                reason, kind = classify_failure(proc)
+                failures.append(f"{module}: {reason}")
+                kinds.add(kind)
 
         raw = _load_cloudfox_output(out_dir)
         findings = parse_cloudfox(
             raw,
             account_id=ctx.identity.account_id if ctx else "",
         )
-        if not raw and failures:
-            return ScanResult(
-                self.name,
-                ScanStatus.ERROR,
-                message=self._failure_message(failures, produced_nothing=True),
-            )
         if failures:
-            # Some modules worked, so findings are real but the evidence is incomplete.
-            # That is still a scanner that could not do its whole job: report it as an
-            # error with an actionable reason rather than passing a partial scan off as clean.
+            # A scanner that could not do its whole job is reported as an error, so a
+            # partial scan is never passed off as clean — but the message must say which
+            # kind of failure it was, because only one of them is the operator's to fix.
             return ScanResult(
                 self.name,
                 ScanStatus.ERROR,
                 findings=findings,
                 raw=raw,
-                message=self._failure_message(failures),
+                message=self._failure_message(failures, kinds, produced_nothing=not raw),
             )
         return ScanResult(self.name, ScanStatus.OK, findings=findings, raw=raw)
 
-    def _failure_message(self, failures: list[str], produced_nothing: bool = False) -> str:
+    def _failure_message(self, failures: list[str], kinds: set[str], produced_nothing: bool = False) -> str:
         completed = len(self.modules) - len(failures)
         head = (
             "CloudFox produced no JSON output"
@@ -113,8 +148,10 @@ class CloudfoxScanner(Scanner):
             else f"{completed} of {len(self.modules)} modules completed"
         )
         message = f"{head}; failed — {'; '.join(failures)}"
-        if any("access denied" in failure for failure in failures):
+        if "access" in kinds:
             message = f"{message}. {_IAM_HINT}"
+        if "upstream" in kinds:
+            message = f"{message}. {_UPSTREAM_HINT}"
         return message
 
 

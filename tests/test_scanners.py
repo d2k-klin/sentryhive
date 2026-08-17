@@ -140,7 +140,14 @@ class _Proc:
         self.stdout = stdout
 
 
-def _cloudfox_with(monkeypatch, failing_module, stderr):
+def _write_module_output(out_dir, module):
+    json_dir = os.path.join(out_dir, "cloudfox-output", "aws", "acct", "json")
+    os.makedirs(json_dir, exist_ok=True)
+    with open(os.path.join(json_dir, f"{module}.json"), "w") as fh:
+        json.dump([], fh)
+
+
+def _cloudfox_with(monkeypatch, failing_module, stderr, returncode=1):
     """CloudFox scanner whose named module exits non-zero with the given stderr.
 
     Successful modules write an (empty) JSON file into CloudFox's real output tree, so
@@ -151,11 +158,8 @@ def _cloudfox_with(monkeypatch, failing_module, stderr):
     def fake_exec(cmd, **_kwargs):
         out_dir, module = cmd[3], cmd[-1]
         if module == failing_module:
-            return _Proc(1, stderr=stderr)
-        json_dir = os.path.join(out_dir, "cloudfox-output", "aws", "acct", "json")
-        os.makedirs(json_dir, exist_ok=True)
-        with open(os.path.join(json_dir, f"{module}.json"), "w") as fh:
-            json.dump([], fh)
+            return _Proc(returncode, stderr=stderr)
+        _write_module_output(out_dir, module)
         return _Proc(0)
 
     monkeypatch.setattr(scanner, "_exec", fake_exec)
@@ -194,3 +198,51 @@ def test_cloudfox_clean_run_has_no_failure_message(monkeypatch, tmp_path):
 
     assert result.status is ScanStatus.OK
     assert result.message == ""
+
+
+def test_cloudfox_decodes_signal_deaths(monkeypatch, tmp_path):
+    """Regression: 'endpoints: exit -11' was meaningless. -11 is SIGSEGV, not an exit code."""
+    scanner = _cloudfox_with(monkeypatch, "endpoints", "", returncode=-11)
+
+    result = scanner._scan(None, str(tmp_path))
+
+    assert "SIGSEGV" in result.message
+    assert "signal 11" in result.message
+    assert "exit -11" not in result.message
+    assert "least-privilege-policy.json" not in result.message  # not an IAM problem
+
+
+def test_cloudfox_names_upstream_defects_as_not_operator_fixable(monkeypatch, tmp_path):
+    """The real failure from a live scan: CloudFox parses IAM policy JSON as YAML."""
+    stderr = "2026/08/17 14:12:52 error unmarshalling YAML: yaml: line 3: could not find expected ':'"
+    scanner = _cloudfox_with(monkeypatch, "role-trusts", stderr)
+
+    result = scanner._scan(None, str(tmp_path))
+
+    assert "unmarshalling YAML" in result.message
+    assert "defect inside CloudFox" in result.message
+    assert "--scanners prowler,cloudsplaining,resilience" in result.message  # the way out
+    assert "least-privilege-policy.json" not in result.message  # never blame IAM for a crash
+
+
+def test_cloudfox_reports_both_failure_kinds_at_once(monkeypatch, tmp_path):
+    """An account can hit a permissions gap and an upstream crash in the same run."""
+    scanner = CloudfoxScanner()
+
+    def fake_exec(cmd, **_kwargs):
+        module = cmd[-1]
+        if module == "endpoints":
+            return _Proc(-11)
+        if module == "role-trusts":
+            return _Proc(1, stderr="error unmarshalling YAML: yaml: line 3")
+        if module == "workloads":
+            return _Proc(1, stderr="AccessDeniedException: not authorized to perform apprunner:ListServices")
+        _write_module_output(cmd[3], module)
+        return _Proc(0)
+
+    monkeypatch.setattr(scanner, "_exec", fake_exec)
+    result = scanner._scan(None, str(tmp_path))
+
+    assert "2 of 5 modules completed" in result.message
+    assert "least-privilege-policy.json" in result.message  # the fixable half
+    assert "defect inside CloudFox" in result.message  # the unfixable half
