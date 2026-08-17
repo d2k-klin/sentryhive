@@ -355,11 +355,15 @@ def _fail_on_scanner_errors(reports):
     if not errors:
         return
     console.print(
-        "[red]Scan incomplete: one or more scanners failed. Reports were written, but findings are incomplete.[/red]"
+        "[red]Scan incomplete: a scanner could not finish its job, so absent findings are "
+        "unproven, not clean. Reports were written from the evidence that was collected.[/red]"
     )
     for error in errors:
         note = f" — {error.message}" if error.message else ""
         console.print(f"  [red]{error.name}[/red]{note}")
+    console.print(
+        "[dim]Exit 1 signals incomplete evidence. Findings alone never fail the run; use --fail-on for that.[/dim]"
+    )
     raise typer.Exit(code=1)
 
 

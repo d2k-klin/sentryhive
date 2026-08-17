@@ -15,6 +15,37 @@ from sentryhive.auth import AwsContext
 from sentryhive.normalize import parse_cloudfox
 from sentryhive.scanners.base import Scanner, ScanResult, ScanStatus, session_env
 
+#: Longest failure reason kept from a module's stderr.
+MAX_REASON_CHARS = 300
+
+#: Substrings that identify an access problem rather than a tool defect. A permissions
+#: gap is the overwhelmingly common cause of a module exiting non-zero, and it needs a
+#: different message: the operator must fix IAM, not file a bug.
+_DENIED_MARKERS = (
+    "accessdenied",
+    "access denied",
+    "unauthorized",
+    "not authorized",
+    "authorizationerror",
+    "explicit deny",
+)
+
+_IAM_HINT = "Grant the SentryHiveCloudFoxCoverage permissions in iam/least-privilege-policy.json and re-run."
+
+
+def _failure_reason(proc) -> str:
+    """Why a module failed, taken from the output the process actually produced.
+
+    Previously only the exit code survived, so "endpoints (exit 1)" gave the operator
+    nothing to act on and read like a defect in SentryHive rather than a missing grant.
+    """
+    text = (proc.stderr or proc.stdout or "").strip()
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    tail = " / ".join(lines[-3:])[:MAX_REASON_CHARS]
+    if any(marker in text.lower() for marker in _DENIED_MARKERS):
+        return f"access denied — {tail}" if tail else "access denied"
+    return tail or f"exit {proc.returncode}"
+
 
 class CloudfoxScanner(Scanner):
     name = "cloudfox"
@@ -48,7 +79,7 @@ class CloudfoxScanner(Scanner):
                 progress_label=f"{self.name}:{module}",
             )
             if proc.returncode != 0:
-                failures.append(f"{module} (exit {proc.returncode})")
+                failures.append(f"{module}: {_failure_reason(proc)}")
 
         raw = _load_cloudfox_output(out_dir)
         findings = parse_cloudfox(
@@ -59,11 +90,32 @@ class CloudfoxScanner(Scanner):
             return ScanResult(
                 self.name,
                 ScanStatus.ERROR,
-                message=f"CloudFox produced no JSON output; failed modules: {', '.join(failures)}",
+                message=self._failure_message(failures, produced_nothing=True),
             )
-        message = f"partial module failures: {', '.join(failures)}" if failures else ""
-        status = ScanStatus.ERROR if failures else ScanStatus.OK
-        return ScanResult(self.name, status, findings=findings, raw=raw, message=message)
+        if failures:
+            # Some modules worked, so findings are real but the evidence is incomplete.
+            # That is still a scanner that could not do its whole job: report it as an
+            # error with an actionable reason rather than passing a partial scan off as clean.
+            return ScanResult(
+                self.name,
+                ScanStatus.ERROR,
+                findings=findings,
+                raw=raw,
+                message=self._failure_message(failures),
+            )
+        return ScanResult(self.name, ScanStatus.OK, findings=findings, raw=raw)
+
+    def _failure_message(self, failures: list[str], produced_nothing: bool = False) -> str:
+        completed = len(self.modules) - len(failures)
+        head = (
+            "CloudFox produced no JSON output"
+            if produced_nothing
+            else f"{completed} of {len(self.modules)} modules completed"
+        )
+        message = f"{head}; failed — {'; '.join(failures)}"
+        if any("access denied" in failure for failure in failures):
+            message = f"{message}. {_IAM_HINT}"
+        return message
 
 
 def _load_cloudfox_output(out_dir: str) -> dict[str, list[dict]]:

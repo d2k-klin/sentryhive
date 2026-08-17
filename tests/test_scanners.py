@@ -1,3 +1,5 @@
+import json
+import os
 import subprocess
 import sys
 
@@ -5,6 +7,7 @@ import pytest
 
 from sentryhive.scanners import ALL_SCANNERS, build_scanners
 from sentryhive.scanners.base import DEFAULT_SCANNER_TIMEOUT_SECONDS, Scanner, ScanStatus
+from sentryhive.scanners.cloudfox import CloudfoxScanner
 from sentryhive.scanners.cloudsplaining import CloudsplainingScanner
 
 
@@ -128,3 +131,66 @@ def test_cloudsplaining_uses_download_directory_and_results_file(tmp_path):
         str(tmp_path / "cloudsplaining"),
         "--skip-open-report",
     ]
+
+
+class _Proc:
+    def __init__(self, returncode=0, stderr="", stdout=""):
+        self.returncode = returncode
+        self.stderr = stderr
+        self.stdout = stdout
+
+
+def _cloudfox_with(monkeypatch, failing_module, stderr):
+    """CloudFox scanner whose named module exits non-zero with the given stderr.
+
+    Successful modules write an (empty) JSON file into CloudFox's real output tree, so
+    the wrapper sees the same "some modules produced evidence" state as a live run.
+    """
+    scanner = CloudfoxScanner()
+
+    def fake_exec(cmd, **_kwargs):
+        out_dir, module = cmd[3], cmd[-1]
+        if module == failing_module:
+            return _Proc(1, stderr=stderr)
+        json_dir = os.path.join(out_dir, "cloudfox-output", "aws", "acct", "json")
+        os.makedirs(json_dir, exist_ok=True)
+        with open(os.path.join(json_dir, f"{module}.json"), "w") as fh:
+            json.dump([], fh)
+        return _Proc(0)
+
+    monkeypatch.setattr(scanner, "_exec", fake_exec)
+    return scanner
+
+
+def test_cloudfox_surfaces_the_reason_a_module_failed(monkeypatch, tmp_path):
+    """Regression: only the exit code survived, so 'endpoints (exit 1)' was unactionable."""
+    stderr = "Error: AccessDeniedException: User is not authorized to perform apprunner:ListServices"
+    scanner = _cloudfox_with(monkeypatch, "endpoints", stderr)
+
+    result = scanner._scan(None, str(tmp_path))
+
+    assert result.status is ScanStatus.ERROR  # could not do its whole job
+    assert "endpoints" in result.message
+    assert "access denied" in result.message
+    assert "apprunner:ListServices" in result.message  # the actual missing permission
+    assert "least-privilege-policy.json" in result.message  # what to do about it
+    assert "4 of 5 modules completed" in result.message
+
+
+def test_cloudfox_non_permission_failure_reports_its_own_stderr(monkeypatch, tmp_path):
+    scanner = _cloudfox_with(monkeypatch, "workloads", "panic: runtime error: index out of range")
+
+    result = scanner._scan(None, str(tmp_path))
+
+    assert "index out of range" in result.message
+    assert "access denied" not in result.message
+    assert "least-privilege-policy.json" not in result.message  # no IAM hint when IAM isn't the cause
+
+
+def test_cloudfox_clean_run_has_no_failure_message(monkeypatch, tmp_path):
+    scanner = _cloudfox_with(monkeypatch, "none-of-them", "")
+
+    result = scanner._scan(None, str(tmp_path))
+
+    assert result.status is ScanStatus.OK
+    assert result.message == ""

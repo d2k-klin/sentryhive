@@ -10,6 +10,20 @@ change findings output.
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-08-17
+
+### Fixed
+
+- A failed CloudFox module now reports **why** it failed. Only the exit code survived
+  before, so `endpoints (exit 1)` gave the operator nothing to act on and read like a
+  defect in SentryHive rather than a missing IAM grant. The module's stderr is now
+  captured, access failures are named as such, and the message points at the exact
+  permissions to add. The message also states how many modules did complete, so a
+  partial failure is no longer indistinguishable from a total one.
+- Clarified the exit-code contract in the CLI's incomplete-scan output: exit 1 means
+  evidence is incomplete, not that findings were found. Findings alone never fail a
+  run — that is what `--fail-on` is for.
+
 ## [1.1.1] - 2026-08-17
 
 ### Fixed
@@ -146,7 +160,8 @@ Initial release — a working v1 for security consultants and auditors.
 - Scanning and PDF generation run fully locally — no scan data leaves the operator's machine.
 - External ID is supported for cross-account role assumption.
 
-[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.2
 [1.1.1]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.1
 [1.1.0]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.0
 [0.0.5]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.5
