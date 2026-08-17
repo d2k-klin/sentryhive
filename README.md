@@ -36,11 +36,12 @@ ScoutSuite — historically the go-to for a single portable HTML audit report �
 | [Prowler](https://github.com/prowler-cloud/prowler) | 500+ checks mapped to CIS, PCI-DSS, SOC2, ISO-27001, HIPAA, NIST 800-53 | **core** |
 | [Cloudsplaining](https://github.com/salesforce/cloudsplaining) | IAM policy risk — over-privilege, priv-esc, exposure | **core** |
 | [CloudFox](https://github.com/BishopFox/cloudfox) | AWS attack surface, public exposure, role trusts, admin workloads | **core** |
+| Resilience (native) | Backup coverage, vault immutability, off-site copies, retention vs RPO, restore-test evidence | **core** |
 | [hardeneks](https://github.com/aws-samples/hardeneks) | AWS EKS best-practice checks | opt-in (`--kubernetes`) |
 | [Kubescape](https://github.com/kubescape/kubescape) | Kubernetes posture and misconfiguration controls | opt-in (`--kubernetes`) |
 | [ASH](https://github.com/awslabs/automated-security-helper) | Static analysis of IaC/code (Terraform, CFN, secrets) | opt-in (`--scanners ...,ash`) |
 
-The default scan runs **Prowler + Cloudsplaining + CloudFox**. Kubernetes is an
+The default scan runs **Prowler + Cloudsplaining + CloudFox + Resilience**. Kubernetes is an
 explicit choice: pass `--kubernetes` to run both HardenEKS and Kubescape, or
 `--no-kubernetes` to make the account-only scope explicit. ASH scans local code/IaC
 and is opt-in.
@@ -126,7 +127,9 @@ sentryhive scan [OPTIONS]
   --external-id TEXT      External ID for role assumption
   --profile TEXT          AWS profile name
   --regions TEXT          Comma-separated regions (eu-central-1,us-east-1)
-  --scanners TEXT         Account scanners (default: prowler,cloudsplaining,cloudfox)
+  --scanners TEXT         Account scanners (default: prowler,cloudsplaining,cloudfox,resilience)
+  --rpo-hours FLOAT       Recovery point objective, judged by the resilience scanner (default: 24)
+  --retention-days INT    Minimum acceptable backup retention (default: 35)
   --kubernetes / --no-kubernetes
                           Include/exclude EKS checks (HardenEKS + Kubescape)
   --clusters TEXT         EKS clusters to target (default: all detected)

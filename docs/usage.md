@@ -42,8 +42,15 @@ sentryhive scan \
 
 ```bash
 sentryhive scan --profile prod \
-  --scanners prowler,cloudsplaining,cloudfox \
+  --scanners prowler,cloudsplaining,cloudfox,resilience \
   --regions eu-central-1,us-east-1
+```
+
+Backup thresholds are engagement-specific — set them to the client's stated objectives,
+since a retention number is only a finding relative to a target:
+
+```bash
+sentryhive scan --profile prod --rpo-hours 4 --retention-days 90
 ```
 
 Add local IaC scanning with ASH:
@@ -96,7 +103,9 @@ See [CI/CD](ci-cd.md) for the reusable GitHub Actions workflow.
 | `--role-arn` | — | IAM role ARN to assume (STS). Repeat for multi-account. |
 | `--external-id` | — | External ID for role assumption. |
 | `--regions` | session default | Comma-separated regions. |
-| `--scanners` | `prowler,cloudsplaining,cloudfox` | Account scanners to run; add `ash` for local IaC. |
+| `--scanners` | `prowler,cloudsplaining,cloudfox,resilience` | Account scanners to run; add `ash` for local IaC. |
+| `--rpo-hours` | `24` | Recovery point objective the resilience scanner judges backup cadence and freshness against. |
+| `--retention-days` | `35` | Minimum acceptable backup retention. |
 | `--kubernetes / --no-kubernetes` | off | Include/exclude EKS HardenEKS + Kubescape checks. |
 | `--clusters` | all detected | Comma-separated EKS clusters to target. |
 | `--kubeconfig` | — | Path to a kubeconfig for EKS access. |

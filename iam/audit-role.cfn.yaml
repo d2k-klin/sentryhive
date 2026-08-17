@@ -67,6 +67,18 @@ Resources:
                   - lambda:GetFunctionUrlConfig
                   - lightsail:GetContainerServices
                 Resource: "*"
+              - Sid: SentryHiveResilienceReadOnly
+                Effect: Allow
+                Action:
+                  - backup:ListBackupPlans
+                  - backup:GetBackupPlan
+                  - backup:ListBackupVaults
+                  - backup:DescribeBackupVault
+                  - backup:ListBackupJobs
+                  - backup:ListRestoreJobs
+                  - backup:ListRestoreTestingPlans
+                  - rds:DescribeDBInstances
+                Resource: "*"
               - Sid: SentryHiveEksReadOnly
                 Effect: Allow
                 Action:

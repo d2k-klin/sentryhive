@@ -86,6 +86,19 @@ _No failing findings. 🎉_
 | {{ s.name }} | {{ s.status }} | {{ s.findings }} | {{ s.version }} | {{ s.message }} |
 {% endfor %}
 
+{% if r.resilience_findings %}
+## Backup & recovery
+
+Recovery evidence gathered across every scanner. An `info` row means the control could
+not be read — unknown, not passing.
+
+| Status | Severity | Resource | Control | Compliance |
+|--------|----------|----------|---------|------------|
+{% for f in r.resilience_findings %}
+| {{ f.status }} | {{ f.severity.label }} | `{{ f.resource or "n/a" }}` | {{ f.title or f.check }} | {{ f.compliance_refs | join(", ") }} |
+{% endfor %}
+
+{% endif %}
 {% if r.eks_findings %}
 ## Kubernetes posture
 

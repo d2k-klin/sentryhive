@@ -10,6 +10,40 @@ change findings output.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-17
+
+### Added
+
+- **Backup & recovery assessment.** A new native `resilience` scanner, run by default
+  alongside Prowler, Cloudsplaining and CloudFox. It is the first scanner with no
+  upstream binary: it calls the AWS Backup and RDS read APIs directly, so it needs
+  nothing installed and is never skipped for a missing tool.
+- Nine recovery checks: backup plan coverage, vault lock (immutability), off-site copy
+  actions, retention against `--retention-days`, schedule cadence and backup freshness
+  against `--rpo-hours`, failed backup jobs, restore-test evidence, and RDS backup
+  retention. Evidence maps to SOC 2 (A1.2/A1.3), ISO 27001 (A.8.13/A.5.30),
+  NIST 800-53 (CP-9/CP-10) and HIPAA §164.308(a)(7).
+- `--rpo-hours` (default 24) and `--retention-days` (default 35) so retention and
+  cadence are judged against the engagement's stated objectives rather than a
+  hardcoded assumption.
+- A **Backup & recovery** section in the HTML and Markdown reports. It gathers
+  recovery evidence from every scanner, so the backup-related findings the wrapped
+  tools already produced — RDS automated backups, S3 versioning, DynamoDB PITR, EFS
+  backup — are now presented as one control area instead of scattered through the
+  register.
+
+### Security
+
+- New read-only IAM actions for the resilience scanner (`backup:ListBackupPlans`,
+  `GetBackupPlan`, `ListBackupVaults`, `DescribeBackupVault`, `ListBackupJobs`,
+  `ListRestoreJobs`, `ListRestoreTestingPlans`, `rds:DescribeDBInstances`), added to
+  the shipped policy, CloudFormation template and Terraform module. No write, modify
+  or delete actions are requested.
+- A recovery control that cannot be read is reported as **informational**
+  ("Could not verify …"), never as passing. Informational findings are excluded from
+  the compliance posture, so a missing permission can never be mistaken for a
+  satisfied control.
+
 ## [0.0.5] - 2026-08-14
 
 ### Changed
@@ -94,7 +128,8 @@ Initial release — a working v1 for security consultants and auditors.
 - Scanning and PDF generation run fully locally — no scan data leaves the operator's machine.
 - External ID is supported for cross-account role assumption.
 
-[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v0.0.5...HEAD
+[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.0
 [0.0.5]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.5
 [0.0.4]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.4
 [0.0.3]: https://github.com/d2k-klin/sentryhive/releases/tag/v0.0.3

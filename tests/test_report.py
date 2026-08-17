@@ -83,6 +83,62 @@ def test_markdown_has_summary(tmp_path):
     assert "Top 1 risks" in md
 
 
+def test_backup_and_recovery_section_renders_in_both_formats(tmp_path):
+    """The section must gather evidence from the native scanner and the wrapped ones."""
+    results = [
+        ScanResult(
+            "resilience",
+            ScanStatus.OK,
+            findings=[
+                Finding(
+                    tool="resilience",
+                    check="resilience-restore-tested",
+                    title="No restore completed in the last 90 days",
+                    description="Backups exist but no restore job proves they are recoverable.",
+                    severity=Severity.MEDIUM,
+                    service="backup",
+                    resource="eu-central-1",
+                    compliance_refs=["SOC2:A1.3", "ISO-27001:A.5.30"],
+                ),
+            ],
+        ),
+        ScanResult(
+            "prowler",
+            ScanStatus.OK,
+            findings=[
+                Finding(
+                    tool="prowler",
+                    check="s3_bucket_object_versioning",
+                    title="S3 bucket versioning disabled",
+                    description="Objects can be overwritten irrecoverably",
+                    severity=Severity.MEDIUM,
+                    service="s3",
+                    resource="arn:aws:s3:::demo",
+                    compliance_refs=["CIS:2.1.2"],
+                ),
+            ],
+        ),
+    ]
+    report = build_report(
+        results,
+        account_id="123456789012",
+        identity_arn="arn:aws:iam::123456789012:user/auditor",
+        regions=["eu-central-1"],
+        generated_at="2026-06-30 00:00:00 UTC",
+    )
+    assert len(report.resilience_findings) == 2
+
+    write_reports(report, str(tmp_path), formats=["html", "md"])
+    html = (tmp_path / "report.html").read_text()
+    md = (tmp_path / "report.md").read_text()
+
+    for text in (html, md):
+        assert "Backup &amp; recovery" in text or "Backup & recovery" in text
+        assert "No restore completed" in text
+        assert "S3 bucket versioning disabled" in text
+    assert 'href="#resilience"' in html  # linked from the print contents page
+
+
 def test_markdown_marks_incomplete_scan(tmp_path):
     report = build_report(
         [ScanResult("prowler", ScanStatus.ERROR, message="scanner timed out", version="Prowler 5.31.1")],

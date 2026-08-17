@@ -63,7 +63,7 @@ def test_multi_account_scan_writes_one_combined_report(monkeypatch, tmp_path):
     written = []
 
     monkeypatch.setattr(cli, "build_contexts", lambda **_kwargs: contexts)
-    monkeypatch.setattr(cli, "build_scanners", lambda _names: [object()])
+    monkeypatch.setattr(cli, "build_scanners", lambda _names, **_kwargs: [object()])
     monkeypatch.setattr(cli, "_confirm", lambda *_args: None)
 
     def fake_run(_scanners, ctx, _workdir, scanner_output=False):

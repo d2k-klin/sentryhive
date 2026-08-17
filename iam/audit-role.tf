@@ -78,6 +78,22 @@ data "aws_iam_policy_document" "extra_read" {
   }
 
   statement {
+    sid    = "SentryHiveResilienceReadOnly"
+    effect = "Allow"
+    actions = [
+      "backup:ListBackupPlans",
+      "backup:GetBackupPlan",
+      "backup:ListBackupVaults",
+      "backup:DescribeBackupVault",
+      "backup:ListBackupJobs",
+      "backup:ListRestoreJobs",
+      "backup:ListRestoreTestingPlans",
+      "rds:DescribeDBInstances",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
     sid    = "SentryHiveEksReadOnly"
     effect = "Allow"
     actions = [

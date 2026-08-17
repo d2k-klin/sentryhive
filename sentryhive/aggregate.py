@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 
 from sentryhive import __version__
 from sentryhive.models import Finding, Severity
+from sentryhive.resilience import is_resilience
 from sentryhive.scanners.base import ScanResult
 
 
@@ -107,6 +108,11 @@ class Report:
     @property
     def attack_surface_findings(self) -> list[Finding]:
         return [f for f in self.findings if f.tool == "cloudfox"]
+
+    @property
+    def resilience_findings(self) -> list[Finding]:
+        """Backup & recovery evidence, gathered across every tool that produced any."""
+        return [f for f in self.findings if is_resilience(f)]
 
     @property
     def account_findings(self) -> list[Finding]:

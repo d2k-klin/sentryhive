@@ -6,7 +6,7 @@ before pointing the tool at any account.
 
 ## What SentryHive needs
 
-Account-level scanning (Prowler + Cloudsplaining + CloudFox) is covered by the AWS-managed
+Account-level scanning (Prowler + Cloudsplaining + CloudFox + Resilience) is covered by the AWS-managed
 **`SecurityAudit`** and **`ViewOnlyAccess`** policies, plus a handful of extra
 read-only actions:
 
@@ -17,6 +17,10 @@ read-only actions:
   administrators when no Principal Mapper data is present.
 - Small read-only gaps for App Runner, Grafana, Lambda function URLs, and Lightsail
   containers — CloudFox workload/endpoint coverage not included in the managed policies.
+- `backup:ListBackupPlans` / `GetBackupPlan` / `ListBackupVaults` / `DescribeBackupVault` /
+  `ListBackupJobs` / `ListRestoreJobs` / `ListRestoreTestingPlans` and
+  `rds:DescribeDBInstances` — backup & recovery evidence for the native resilience
+  scanner. Without these the recovery controls report as *unverified*, never as passing.
 - `eks:ListClusters` / `eks:DescribeCluster` (+ nodegroup/addon list/describe) — EKS
   detection and metadata.
 

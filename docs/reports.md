@@ -101,6 +101,18 @@ trusts without an external ID, and public resource policies—as failures. Publi
 endpoints and network services stay informational until a human validates intent,
 authentication, and reachability.
 
+### Backup & recovery
+
+Recovery evidence from every scanner is gathered into one section: the native
+resilience checks (vault immutability, off-site copies, retention vs RPO, restore
+testing) alongside the backup-related findings the wrapped tools produce (RDS
+automated backups, S3 versioning, DynamoDB PITR, EFS backup).
+
+An `info` row here means the control could not be read — a permissions gap, most
+often. That is deliberate: an unreadable control is *unknown*, and informational
+findings are excluded from the compliance posture, so it can never be mistaken for a
+pass.
+
 ### Dedup
 
 When two tools flag the same `service + resource + check`, SentryHive keeps the

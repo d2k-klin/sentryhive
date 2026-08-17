@@ -20,6 +20,7 @@ def test_registry_has_all_scanners():
         "prowler",
         "cloudsplaining",
         "cloudfox",
+        "resilience",
         "hardeneks",
         "kubescape",
         "ash",

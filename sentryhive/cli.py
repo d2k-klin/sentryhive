@@ -27,14 +27,20 @@ from sentryhive import __version__
 from sentryhive.aggregate import build_report, build_rollup
 from sentryhive.auth import AuthError, build_contexts, discover_eks_clusters
 from sentryhive.report import VALID_FORMATS, write_reports
-from sentryhive.scanners import ALL_SCANNERS, build_scanners
+from sentryhive.scanners import (
+    ALL_SCANNERS,
+    DEFAULT_RETENTION_DAYS,
+    DEFAULT_RPO_HOURS,
+    build_scanners,
+)
 from sentryhive.scanners.ash import AshScanner
 from sentryhive.scanners.base import Scanner
 from sentryhive.scanners.hardeneks import HardeneksScanner
 from sentryhive.scanners.kubescape import KubescapeScanner
 
-#: Default scanners for the consultant audience: compliance + IAM risk (addendum §2).
-CORE_SCANNERS = ["prowler", "cloudsplaining", "cloudfox"]
+#: Default scanners for the consultant audience: compliance + IAM risk (addendum §2)
+#: plus native backup & recovery checks.
+CORE_SCANNERS = ["prowler", "cloudsplaining", "cloudfox", "resilience"]
 DEFAULT_FORMATS = ["html", "md", "json"]
 
 app = typer.Typer(
@@ -73,6 +79,7 @@ def scanners():
     table.add_row("prowler", "core", "live AWS account — config & compliance")
     table.add_row("cloudsplaining", "core", "live AWS account — IAM policy risk")
     table.add_row("cloudfox", "core", "live AWS account — attack surface & privilege paths")
+    table.add_row("resilience", "core (native)", "live AWS account — backup, retention & restore evidence")
     table.add_row("hardeneks", "opt-in (--kubernetes)", "inside EKS cluster(s) — AWS best practices")
     table.add_row("kubescape", "opt-in (--kubernetes)", "inside EKS cluster(s) — posture & misconfiguration")
     table.add_row("ash", "opt-in (--scanners)", "local code/IaC on disk")
@@ -109,6 +116,16 @@ def scan(
     clusters: str = typer.Option(None, "--clusters", help="Comma-separated EKS clusters (default: all detected)."),
     kubeconfig: str = typer.Option(None, "--kubeconfig", help="Path to a kubeconfig for EKS access."),
     source_dir: str = typer.Option(None, "--source-dir", help="Directory ASH scans (defaults to CWD)."),
+    rpo_hours: float = typer.Option(
+        DEFAULT_RPO_HOURS,
+        "--rpo-hours",
+        help="Recovery point objective in hours. Backup cadence and freshness are judged against it.",
+    ),
+    retention_days: int = typer.Option(
+        DEFAULT_RETENTION_DAYS,
+        "--retention-days",
+        help="Minimum acceptable backup retention in days.",
+    ),
     client_name: str = typer.Option(None, "--client-name", help="Client/engagement name for the report header."),
     logo: str = typer.Option(None, "--logo", help="Path to a logo image embedded in the report header."),
     output_formats: str = typer.Option(
@@ -160,7 +177,7 @@ def scan(
     logo_uri = _logo_data_uri(logo) if logo else ""
     generated_at = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    aws_selected = [s for s in selected if s in ("prowler", "cloudsplaining", "cloudfox")]
+    aws_selected = [s for s in selected if s in ("prowler", "cloudsplaining", "cloudfox", "resilience")]
     ash_selected = "ash" in selected
     kubernetes_selected = [s for s in selected if s in ("hardeneks", "kubescape")]
     kubernetes_requested = kubernetes or eks or bool(kubernetes_selected)
@@ -185,7 +202,9 @@ def scan(
 
         for ctx in contexts:
             console.rule(f"[bold]Account {ctx.identity.account_id}[/bold]")
-            scanner_objs = build_scanners(aws_selected) + _kubernetes_scanners(
+            scanner_objs = build_scanners(
+                aws_selected, rpo_hours=rpo_hours, retention_days=retention_days
+            ) + _kubernetes_scanners(
                 ctx,
                 kubernetes_requested,
                 kubernetes_selected,

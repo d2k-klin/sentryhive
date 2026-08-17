@@ -14,12 +14,18 @@ from sentryhive.scanners.cloudsplaining import CloudsplainingScanner
 from sentryhive.scanners.hardeneks import HardeneksScanner
 from sentryhive.scanners.kubescape import KubescapeScanner
 from sentryhive.scanners.prowler import ProwlerScanner
+from sentryhive.scanners.resilience import (
+    DEFAULT_RETENTION_DAYS,
+    DEFAULT_RPO_HOURS,
+    ResilienceScanner,
+)
 
 #: Registered scanners. Values are factories so per-run options can be injected.
 REGISTRY: dict[str, Callable[..., Scanner]] = {
     "prowler": ProwlerScanner,
     "cloudsplaining": CloudsplainingScanner,
     "cloudfox": CloudfoxScanner,
+    "resilience": ResilienceScanner,
     "hardeneks": HardeneksScanner,
     "kubescape": KubescapeScanner,
     "ash": AshScanner,
@@ -34,6 +40,8 @@ def build_scanners(
     eks_cluster: str | None = None,
     kubeconfig: str | None = None,
     source_dir: str | None = None,
+    rpo_hours: float = DEFAULT_RPO_HOURS,
+    retention_days: int = DEFAULT_RETENTION_DAYS,
 ) -> list[Scanner]:
     """Instantiate the requested scanners, passing through per-scanner options."""
     scanners: list[Scanner] = []
@@ -45,6 +53,8 @@ def build_scanners(
             scanners.append(factory(cluster=eks_cluster, kubeconfig=kubeconfig))
         elif name == "ash":
             scanners.append(factory(source_dir=source_dir))
+        elif name == "resilience":
+            scanners.append(factory(rpo_hours=rpo_hours, retention_days=retention_days))
         else:
             scanners.append(factory())
     return scanners
@@ -53,6 +63,8 @@ def build_scanners(
 __all__ = [
     "REGISTRY",
     "ALL_SCANNERS",
+    "DEFAULT_RETENTION_DAYS",
+    "DEFAULT_RPO_HOURS",
     "build_scanners",
     "Scanner",
     "ScanResult",

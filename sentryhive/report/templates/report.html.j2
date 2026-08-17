@@ -204,6 +204,7 @@
     <li><a href="#priority">Priority risks</a></li>
     {% if r.compliance %}<li><a href="#compliance">Compliance posture</a></li>{% endif %}
     {% if r.attack_surface_findings %}<li><a href="#attack-surface">AWS attack surface</a></li>{% endif %}
+    {% if r.resilience_findings %}<li><a href="#resilience">Backup &amp; recovery</a></li>{% endif %}
     {% if r.eks_findings %}<li><a href="#kubernetes">Kubernetes posture</a></li>{% endif %}
     <li><a href="#scanners">Tool execution evidence</a></li>
     <li><a href="#failure-register">Failure register</a></li>
@@ -342,6 +343,25 @@
       </tbody>
     </table>
     {% if r.attack_surface_findings | length > 50 %}<p class="section-note">Showing 50 of {{ r.attack_surface_findings | length }}; the full set is in HTML filtering and findings.json.</p>{% endif %}
+  </section>
+  {% endif %}
+
+  {% if r.resilience_findings %}
+  <section id="resilience">
+    <h2>Backup &amp; recovery</h2>
+    <p class="section-note">Recovery evidence gathered across every scanner. An <span class="tag status-info">info</span> row means the control could not be read — unknown, not passing.</p>
+    <table>
+      <thead><tr><th style="width:11%">Status</th><th style="width:13%">Severity</th><th style="width:31%">Resource</th><th>Control</th></tr></thead>
+      <tbody>
+      {% for f in r.resilience_findings[:75] %}
+      <tr><td><span class="tag status-{{ f.status }}">{{ f.status }}</span></td>
+          <td><span class="sev" style="background:{{ severity_colors[f.severity.label] }}">{{ f.severity.label }}</span></td>
+          <td><code>{{ f.resource or "n/a" }}</code></td>
+          <td><strong>{{ f.title or f.check }}</strong>{% if f.compliance_refs %}<br><span class="plain">{{ f.compliance_refs | join(", ") | plain_text }}</span>{% endif %}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% if r.resilience_findings | length > 75 %}<p class="section-note">Showing 75 of {{ r.resilience_findings | length }}; the full set is in HTML filtering and findings.json.</p>{% endif %}
   </section>
   {% endif %}
 
