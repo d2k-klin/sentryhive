@@ -114,3 +114,47 @@ def test_multi_account_scan_writes_one_combined_report(monkeypatch, tmp_path):
     assert report.is_rollup is True
     assert report.accounts == ["111111111111", "222222222222"]
     assert out_dir == str(tmp_path)
+
+
+def test_scanner_messages_with_brackets_do_not_crash_the_console(capsys):
+    """Regression: rich parsed a loot path in a scanner message as markup and raised.
+
+    The real message contained
+    '[/tmp/sentryhive-.../loot/endpoints-UrlsOnly.txt]', which rich read as a closing
+    tag with no opening tag, killing the whole run after the scan had already succeeded.
+    """
+    from sentryhive.scanners.base import ScanResult, ScanStatus
+
+    hostile = (
+        "3 of 5 modules completed; failed — endpoints: crashed — killed by SIGSEGV "
+        "(signal 11) — wrote [/tmp/sentryhive-432m02ux/cloudfox/cloudfox-output/aws/"
+        "254038622216-AIDATWJPBYAEK4P5IOHDM/loot/endpoints-UrlsOnly.txt] [bold] [/red]"
+    )
+
+    class _Scanner:
+        name = "cloudfox"
+        show_scanner_output = False
+
+        def run(self, ctx, workdir):
+            return ScanResult("cloudfox", ScanStatus.ERROR, message=hostile)
+
+    results = cli._run([_Scanner()], None, "/tmp")
+
+    out = capsys.readouterr().out
+    assert results[0].status is ScanStatus.ERROR
+    assert "UrlsOnly.txt" in out  # printed literally, not swallowed as markup
+    assert "error" in out
+
+
+def test_incomplete_scan_summary_survives_bracket_text(capsys):
+    """The same hostile message reaching the exit-code path must not crash either."""
+    from sentryhive.aggregate import ScannerSummary
+
+    class _Report:
+        scanner_errors = [ScannerSummary("cloudfox", "error", 0, "wrote [/tmp/loot/x.txt] [/red]")]
+
+    with pytest.raises(typer.Exit) as exc:
+        cli._fail_on_scanner_errors([_Report()])
+
+    assert exc.value.exit_code == 1
+    assert "x.txt" in capsys.readouterr().out

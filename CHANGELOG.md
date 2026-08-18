@@ -10,6 +10,19 @@ change findings output.
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-08-18
+
+### Fixed
+
+- A scanner message containing square brackets crashed the CLI with `MarkupError`
+  after the scan had already succeeded. Rich treats `[...]` as console markup, and
+  1.1.2 began putting raw scanner output — including CloudFox loot file paths like
+  `[/tmp/.../endpoints-UrlsOnly.txt]` — into that output. All scanner- and
+  user-supplied text printed to the console is now escaped, at every site rather than
+  only the one that crashed: scanner status lines, the incomplete-scan summary,
+  authentication errors, client name, identity ARN, and report paths. The HTML and
+  Markdown reports were never affected; they already escape scanner-controlled text.
+
 ## [1.1.3] - 2026-08-17
 
 ### Fixed
@@ -177,7 +190,8 @@ Initial release — a working v1 for security consultants and auditors.
 - Scanning and PDF generation run fully locally — no scan data leaves the operator's machine.
 - External ID is supported for cross-account role assumption.
 
-[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v1.1.3...HEAD
+[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v1.1.4...HEAD
+[1.1.4]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.4
 [1.1.3]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.3
 [1.1.2]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.2
 [1.1.1]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.1

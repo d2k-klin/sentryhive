@@ -20,6 +20,7 @@ import tempfile
 
 import typer
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
@@ -195,7 +196,7 @@ def scan(
                 regions=region_list,
             )
         except AuthError as exc:
-            console.print(f"[red]Authentication failed:[/red] {exc}")
+            console.print(f"[red]Authentication failed:[/red] {escape(str(exc))}")
             raise typer.Exit(code=1) from None
 
         _confirm(contexts, selected, kubernetes_requested, client_name, yes)
@@ -305,7 +306,7 @@ def _run(scanner_objs: list[Scanner], ctx, workdir: str, scanner_output: bool = 
         console.print(f"▶ running [bold]{scanner.name}[/bold] …")
         result = scanner.run(ctx, workdir)
         style = {"ok": "green", "skipped": "yellow", "error": "red"}[result.status.value]
-        note = f" — {result.message}" if result.message else ""
+        note = f" — {escape(result.message)}" if result.message else ""
         console.print(f"  [{style}]{result.status.value}[/{style}] ({len(result.findings)} findings){note}")
         results.append(result)
     return results
@@ -314,9 +315,9 @@ def _run(scanner_objs: list[Scanner], ctx, workdir: str, scanner_output: bool = 
 def _confirm(contexts, selected, kubernetes_requested, client_name, yes):
     lines = []
     if client_name:
-        lines.append(f"[bold]Client:[/bold] {client_name}")
+        lines.append(f"[bold]Client:[/bold] {escape(client_name)}")
     for ctx in contexts:
-        lines.append(f"[bold]Account:[/bold] {ctx.identity.account_id}  [dim]{ctx.identity.arn}[/dim]")
+        lines.append(f"[bold]Account:[/bold] {ctx.identity.account_id}  [dim]{escape(ctx.identity.arn)}[/dim]")
     lines.append(f"[bold]Regions:[/bold] {', '.join(contexts[0].regions)}")
     kubernetes_note = " + Kubernetes (HardenEKS, Kubescape)" if kubernetes_requested else ""
     lines.append(f"[bold]Scanners:[/bold] {', '.join(selected)}{kubernetes_note}")
@@ -328,7 +329,7 @@ def _confirm(contexts, selected, kubernetes_requested, client_name, yes):
 
 def _logo_data_uri(path: str) -> str:
     if not os.path.isfile(path):
-        console.print(f"[yellow]Logo not found, ignoring: {path}[/yellow]")
+        console.print(f"[yellow]Logo not found, ignoring: {escape(path)}[/yellow]")
         return ""
     mime = mimetypes.guess_type(path)[0] or "image/png"
     with open(path, "rb") as fh:
@@ -359,8 +360,8 @@ def _fail_on_scanner_errors(reports):
         "unproven, not clean. Reports were written from the evidence that was collected.[/red]"
     )
     for error in errors:
-        note = f" — {error.message}" if error.message else ""
-        console.print(f"  [red]{error.name}[/red]{note}")
+        note = f" — {escape(error.message)}" if error.message else ""
+        console.print(f"  [red]{escape(error.name)}[/red]{note}")
     console.print(
         "[dim]Exit 1 signals incomplete evidence. Findings alone never fail the run; use --fail-on for that.[/dim]"
     )
@@ -388,7 +389,7 @@ def _print_summary(report, paths: dict[str, str]):
         console.print(ct)
     console.print("\n[bold]Reports written:[/bold]")
     for fmt, path in paths.items():
-        console.print(f"  • {fmt}: [cyan]{path}[/cyan]")
+        console.print(f"  • {fmt}: [cyan]{escape(path)}[/cyan]")
 
 
 if __name__ == "__main__":  # pragma: no cover
