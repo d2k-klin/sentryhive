@@ -10,6 +10,21 @@ change findings output.
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-08-18
+
+### Fixed
+
+- A CloudFox module that exited non-zero **after doing its work** no longer fails the
+  run. CloudFox writes progress to stderr and can return a non-zero code having
+  enumerated successfully — a live scan logged "63 endpoints found" and "Loot written
+  to ..." and still exited 1, which marked the scan incomplete and returned exit 1 for
+  a module that had produced complete output. Module success is now judged by whether
+  the module wrote its JSON evidence, not by the exit code alone. A noisy exit is noted
+  in the scanner message and nothing more.
+- Failure reasons now quote lines that actually look like errors instead of the last
+  three lines of output. CloudFox's tail is usually success chatter, so the reported
+  cause was "63 endpoints found" rather than the real error.
+
 ## [1.1.4] - 2026-08-18
 
 ### Fixed
@@ -190,7 +205,8 @@ Initial release — a working v1 for security consultants and auditors.
 - Scanning and PDF generation run fully locally — no scan data leaves the operator's machine.
 - External ID is supported for cross-account role assumption.
 
-[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v1.1.4...HEAD
+[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v1.1.5...HEAD
+[1.1.5]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.5
 [1.1.4]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.4
 [1.1.3]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.3
 [1.1.2]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.2

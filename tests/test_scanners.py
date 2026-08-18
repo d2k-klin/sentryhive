@@ -246,3 +246,52 @@ def test_cloudfox_reports_both_failure_kinds_at_once(monkeypatch, tmp_path):
     assert "2 of 5 modules completed" in result.message
     assert "least-privilege-policy.json" in result.message  # the fixable half
     assert "defect inside CloudFox" in result.message  # the unfixable half
+
+
+def test_module_that_wrote_output_is_not_a_failure(monkeypatch, tmp_path):
+    """Regression from a live scan: endpoints logged '63 endpoints found', wrote its
+    output, then exited 1. Failing the whole run over that exit code was wrong."""
+    chatter = (
+        "[endpoints][254038622216] Loot written to /tmp/x/loot/endpoints-UrlsOnly.txt\n"
+        "[endpoints][254038622216] 63 endpoints found."
+    )
+    scanner = CloudfoxScanner()
+
+    def fake_exec(cmd, **_kwargs):
+        out_dir, module = cmd[3], cmd[-1]
+        _write_module_output(out_dir, module)  # every module writes its evidence
+        if module == "endpoints":
+            return _Proc(1, stderr=chatter)
+        return _Proc(0)
+
+    monkeypatch.setattr(scanner, "_exec", fake_exec)
+    result = scanner._scan(None, str(tmp_path))
+
+    assert result.status is ScanStatus.OK  # did the job; do not fail the run
+    assert "endpoints" in result.message
+    assert "treated as successful" in result.message
+
+
+def test_module_with_no_output_is_still_a_failure(monkeypatch, tmp_path):
+    """The inverse: a non-zero exit with nothing written is a genuine failure."""
+    scanner = _cloudfox_with(monkeypatch, "endpoints", "Error: AccessDeniedException")
+
+    result = scanner._scan(None, str(tmp_path))
+
+    assert result.status is ScanStatus.ERROR
+    assert "access denied" in result.message
+
+
+def test_failure_reason_prefers_error_lines_over_progress_chatter(monkeypatch, tmp_path):
+    """The tail of CloudFox stderr is usually success chatter, not the cause."""
+    noisy = (
+        "Error: operation error EC2: DescribeInstances, https response error StatusCode: 500\n"
+        "[endpoints] Loot written to /tmp/x/loot/endpoints-UrlsOnly.txt\n"
+        "[endpoints] 63 endpoints found."
+    )
+    scanner = _cloudfox_with(monkeypatch, "endpoints", noisy)
+
+    result = scanner._scan(None, str(tmp_path))
+
+    assert "StatusCode: 500" in result.message  # the actual error
+    assert "63 endpoints found" not in result.message  # not the chatter

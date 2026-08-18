@@ -9,6 +9,23 @@ from sentryhive.scanners.hardeneks import HardeneksScanner
 from sentryhive.scanners.kubescape import KubescapeScanner
 
 
+def _ctx(account_id):
+    """Minimal stand-in for a verified AwsContext."""
+
+    class _Identity:
+        def __init__(self, acct):
+            self.account_id = acct
+            self.arn = f"arn:aws:iam::{acct}:role/audit [bracketed]"
+            self.user_id = "AIDA"
+
+    class _Ctx:
+        def __init__(self, acct):
+            self.identity = _Identity(acct)
+            self.regions = ["eu-west-1"]
+
+    return _Ctx(account_id)
+
+
 def test_kubernetes_disabled_does_not_discover_clusters(monkeypatch):
     def unexpected_discovery(_ctx):
         raise AssertionError("cluster discovery must stay off")
@@ -158,3 +175,56 @@ def test_incomplete_scan_summary_survives_bracket_text(capsys):
 
     assert exc.value.exit_code == 1
     assert "x.txt" in capsys.readouterr().out
+
+
+def test_scan_end_to_end_with_hostile_scanner_output(monkeypatch, tmp_path):
+    """Full CLI run with scanner output engineered to break the console and the report.
+
+    Every console-crash regression so far reached users because the unit tests exercised
+    scanners and templates in isolation, never `scan` end to end. This drives the real
+    command and asserts it survives brackets, rich markup, ANSI and control characters
+    in scanner-controlled strings, then writes readable reports.
+    """
+    hostile_message = (
+        "[endpoints][acct] Loot written to [/tmp/sentryhive-x/loot/endpoints-UrlsOnly.txt] "
+        "[/red] [bold]unclosed \x1b[31m ansi \x00 null"
+    )
+    hostile_finding = Finding(
+        tool="cloudfox",
+        check="[check]",
+        title="Public endpoint [/bold] <script>alert(1)</script>",
+        description="resource [/dim] & <b>markup</b>",
+        severity=Severity.HIGH,
+        service="ec2",
+        resource="arn:aws:ec2:eu-west-1:1:instance/[i-123]",
+        status="fail",
+        compliance_refs=["CIS:1.1"],
+    )
+
+    monkeypatch.setattr(cli, "build_contexts", lambda **_kw: [_ctx("254038622216")])
+    monkeypatch.setattr(
+        cli,
+        "_run",
+        lambda *_a, **_kw: [
+            ScanResult("cloudfox", ScanStatus.ERROR, findings=[hostile_finding], message=hostile_message),
+            ScanResult("resilience", ScanStatus.OK, findings=[], message=""),
+        ],
+    )
+
+    result = CliRunner().invoke(
+        cli.app,
+        ["scan", "--role-arn", "arn::254038622216", "--yes", "--out", str(tmp_path), "--format", "html,md,json"],
+    )
+
+    # Exit 1 for incomplete evidence — but a clean exit, not a traceback.
+    assert result.exit_code == 1, result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit)
+    assert "Traceback" not in result.output
+    assert "MarkupError" not in result.output
+    assert "UrlsOnly.txt" in result.output
+
+    html = (tmp_path / "report.html").read_text()
+    assert "<script>alert(1)</script>" not in html  # escaped, not injected
+    assert "Public endpoint" in html
+    assert (tmp_path / "report.md").exists()
+    assert (tmp_path / "findings.json").exists()
