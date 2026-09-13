@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/mascot.png" alt="Mr. D — the SentryHive mascot" width="180">
+</p>
+
 # ⬡ SentryHive
 
 > Point it at a client's AWS account and get an evidence-grade security report from best-in-class open-source scanners — no manual tool wrangling.

@@ -74,11 +74,9 @@ matching wrapper in `sentryhive/scanners/` (`prowler.py`, `cloudsplaining.py`,
      `./scripts/verify-scanners.sh` to confirm they're still on `PATH` and
      reporting versions correctly.
    - Run `pip-audit` against the app and all scanner environments. The Prowler
-     environment may temporarily ignore `GHSA-537c-gmf6-5ccf`,
-     `PYSEC-2026-3552`, `PYSEC-2026-3553`, `PYSEC-2026-3554`, and
-     `PYSEC-2026-3628` only while the newest resolvable Prowler pins
-     `cryptography==46.0.7` and `h2==4.3.0`; remove each exception as soon as
-     Prowler publishes compatible fixed pins.
+     environment may temporarily ignore `PYSEC-2026-3628` only while the newest
+     resolvable Prowler pins `h2==4.3.0`; remove the exception as soon as
+     Prowler publishes a compatible fixed pin.
 7. If validation passes, commit your changes so a PR titled
    "tools: bump toolname x.y.z -> x.y.z" (or similar for multiple tools) gets
    opened, with a description listing each bump, a link to its release

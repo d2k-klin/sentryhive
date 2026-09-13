@@ -2,15 +2,15 @@
 FROM python:3.12-slim
 
 # Pinned tool versions — bumped weekly by .github/workflows/tool-watch.yml.
-ARG PROWLER_VERSION=5.37.0
+ARG PROWLER_VERSION=5.42.0
 # Cloudsplaining requires boto3>=1.41, while Prowler pins boto3==1.40.61.
 ARG CLOUDSPLAINING_VERSION=0.9.1
 ARG HARDENEKS_VERSION=1.1.1
-ARG ASH_VERSION=3.5.9
+ARG ASH_VERSION=3.7.1
 ARG CLOUDFOX_VERSION=2.0.5
-ARG KUBESCAPE_VERSION=4.0.12
-ARG AWSCLI_VERSION=2.36.23
-ARG KUBECTL_VERSION=v1.36.3
+ARG KUBESCAPE_VERSION=4.0.14
+ARG AWSCLI_VERSION=2.36.44
+ARG KUBECTL_VERSION=v1.37.0
 
 LABEL org.opencontainers.image.title="SentryHive" \
       org.opencontainers.image.description="AWS security scanning toolkit — one image, one report." \
@@ -50,9 +50,9 @@ RUN KARCH="$(dpkg --print-architecture)" \
 RUN BARCH="$(dpkg --print-architecture)" \
     && case "$BARCH" in \
          amd64) CLOUDFOX_SHA="3cdc5a1a94ff14eb8df04d3dc8f9eca7db232a1315ceb8a7de26e4cb13e32fd5"; \
-          KUBESCAPE_SHA="58e9840d26a3d37fc86dd1b9ee41b085ec7d3e67a56833b66d2a716792af61fa" ;; \
+          KUBESCAPE_SHA="5d987374013ae5b6d9508146d51d5ee62c0d4c638313154f69be35123269badf" ;; \
          arm64) CLOUDFOX_SHA="fcebd90329a8bb2f61c00cfb131572a44483251da532f1363a0ceb56541cd4ca"; \
-          KUBESCAPE_SHA="923d8b7878d0b6c903441909027ecff183dae12b760ff76a0d78c44025fe02dd" ;; \
+          KUBESCAPE_SHA="89422fc2e1fcf0ca44764bd51721e26249edf7fb01231442f21584324882b381" ;; \
          *) echo "unsupported architecture: $BARCH" >&2; exit 1 ;; \
        esac \
     && curl -sSL "https://github.com/BishopFox/cloudfox/releases/download/v${CLOUDFOX_VERSION}/cloudfox-linux-${BARCH}.zip" \
@@ -80,7 +80,7 @@ RUN python -m venv /opt/cloudsplaining-venv \
     && /opt/cloudsplaining-venv/bin/pip install \
         "cloudsplaining==${CLOUDSPLAINING_VERSION}"
 
-# ASH requires cryptography>=50, while Prowler 5.37.0 pins cryptography==46.0.7.
+# ASH requires pydantic>=2.13.4, while Prowler 5.42.0 pins pydantic==2.12.5.
 RUN python -m venv /opt/ash-venv \
     && /opt/ash-venv/bin/pip install --upgrade pip \
     && /opt/ash-venv/bin/pip install \

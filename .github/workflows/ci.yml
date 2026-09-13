@@ -108,13 +108,10 @@ jobs:
           SCANNER_SITE="$("$RUNNER_TEMP/scanner-venv/bin/python" -c 'import site; print(site.getsitepackages()[0])')"
           CLOUDSPLAINING_SITE="$("$RUNNER_TEMP/cloudsplaining-venv/bin/python" -c 'import site; print(site.getsitepackages()[0])')"
           ASH_SITE="$("$RUNNER_TEMP/ash-venv/bin/python" -c 'import site; print(site.getsitepackages()[0])')"
-          # Prowler 5.37.0 pins these vulnerable versions; remove each exception
-          # when a resolvable release permits cryptography>=50.0.0 and h2>=4.4.1.
+          # Prowler 5.42.0 pins h2==4.3.0; drop this exception when a resolvable
+          # release permits h2>=4.4.1. (The cryptography exceptions are gone:
+          # 5.42.0 pins cryptography==50.0.0, which carries all four fixes.)
           pip-audit --path "$SCANNER_SITE" \
-            --ignore-vuln GHSA-537c-gmf6-5ccf \
-            --ignore-vuln PYSEC-2026-3552 \
-            --ignore-vuln PYSEC-2026-3553 \
-            --ignore-vuln PYSEC-2026-3554 \
             --ignore-vuln PYSEC-2026-3628
           pip-audit --path "$CLOUDSPLAINING_SITE"
           pip-audit --path "$ASH_SITE"

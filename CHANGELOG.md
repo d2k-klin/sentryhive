@@ -10,6 +10,32 @@ change findings output.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-13
+
+### Added
+
+- Mr. D, the project mascot, now heads the README (`docs/assets/mascot.png`).
+
+### Changed
+
+- Bundled scanners upgraded: **Prowler 5.37.0 → 5.42.0**, **ASH 3.5.9 → 3.7.1**,
+  **Kubescape 4.0.12 → 4.0.14**, AWS CLI 2.36.23 → 2.36.44, kubectl v1.36.3 → v1.37.0.
+  Cloudsplaining (0.9.1), CloudFox (2.0.5) and hardeneks (1.1.1) were already current.
+  Prowler adds checks for GuardDuty Runtime Monitoring and AI Protection, Bedrock
+  AgentCore `iam:PassRole` paths, EKS VPC-CNI network-policy enforcement, IAM role
+  service-trust scoping and VPC open egress, and de-duplicates compliance requirement
+  IDs, so expect more findings and cleaner per-framework tallies. No CLI flags or
+  output schemas changed, so the scanner wrappers and `normalize.py` are untouched.
+- The ASH venv stays separate from Prowler's for a new reason: both now want
+  `cryptography==50`, but ASH needs `pydantic>=2.13.4` while Prowler pins `2.12.5`.
+
+### Security
+
+- Dropped four stale `pip-audit` exceptions. Prowler 5.42.0 pins
+  `cryptography==50.0.0`, which carries the fixes for `GHSA-537c-gmf6-5ccf`,
+  `PYSEC-2026-3552`, `PYSEC-2026-3553` and `PYSEC-2026-3554`. Only the `h2==4.3.0`
+  exception (`PYSEC-2026-3628`) remains.
+
 ## [1.1.5] - 2026-08-18
 
 ### Fixed
@@ -205,7 +231,8 @@ Initial release — a working v1 for security consultants and auditors.
 - Scanning and PDF generation run fully locally — no scan data leaves the operator's machine.
 - External ID is supported for cross-account role assumption.
 
-[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v1.1.5...HEAD
+[Unreleased]: https://github.com/d2k-klin/sentryhive/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.2.0
 [1.1.5]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.5
 [1.1.4]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.4
 [1.1.3]: https://github.com/d2k-klin/sentryhive/releases/tag/v1.1.3
