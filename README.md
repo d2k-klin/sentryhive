@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/mascot.png" alt="Mr. D — the SentryHive mascot" width="180">
+  <a href="https://mr-d.dev"><img src="docs/assets/mascot.png" alt="Mr. D — the SentryHive mascot" width="180"></a>
 </p>
 
 # ⬡ SentryHive
@@ -247,3 +247,7 @@ pytest
 ## License
 
 [Apache-2.0](LICENSE).
+
+---
+
+Created by **[Mr. D](https://mr-d.dev)** — the same producer mark every SentryHive report carries.
